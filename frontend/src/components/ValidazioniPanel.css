@@ -1,0 +1,293 @@
+/* Stili Pannello Validazioni */
+
+.validazioni-compact {
+  margin: 20px 0;
+}
+
+.btn-validazioni-expand {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-validazioni-expand:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.validazioni-panel {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  margin: 20px 0;
+  animation: slideDown 0.3s;
+}
+
+.validazioni-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.validazioni-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.validazioni-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-refresh,
+.btn-collapse {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-refresh {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-collapse {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-collapse:hover {
+  background-color: #5a6268;
+}
+
+.validazioni-loading {
+  text-align: center;
+  padding: 30px;
+  color: #666;
+}
+
+.validazioni-riepilogo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  border-left: 4px solid;
+}
+
+.validazioni-riepilogo.stato-ok {
+  background: #d4edda;
+  border-color: #28a745;
+}
+
+.validazioni-riepilogo.stato-warning {
+  background: #fff3cd;
+  border-color: #ffc107;
+}
+
+.validazioni-riepilogo.stato-errore {
+  background: #f8d7da;
+  border-color: #dc3545;
+}
+
+.riepilogo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.riepilogo-icon {
+  font-size: 24px;
+}
+
+.riepilogo-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.validazioni-section {
+  margin-bottom: 30px;
+}
+
+.validazioni-section h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.presidio-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.presidio-card {
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  text-align: center;
+}
+
+.presidio-card.stato-ok {
+  background: #d4edda;
+  border-color: #28a745;
+}
+
+.presidio-card.stato-warning {
+  background: #fff3cd;
+  border-color: #ffc107;
+}
+
+.presidio-card.stato-errore {
+  background: #f8d7da;
+  border-color: #dc3545;
+}
+
+.presidio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.presidio-giorno {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.presidio-icon {
+  font-size: 20px;
+}
+
+.presidio-tipo {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.presidio-problemi {
+  margin-top: 10px;
+}
+
+.problema-item {
+  font-size: 11px;
+  text-align: left;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+.dipendenti-table-wrapper {
+  overflow-x: auto;
+}
+
+.dipendenti-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dipendenti-table th {
+  background-color: #f8f9fa;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #e0e0e0;
+}
+
+.dipendenti-table td {
+  padding: 12px 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.dipendenti-table tr.stato-ok {
+  background: #f0f9f4;
+}
+
+.dipendenti-table tr.stato-warning {
+  background: #fffbf0;
+}
+
+.dipendenti-table tr.stato-errore {
+  background: #fef5f5;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.problemi-cell {
+  max-width: 300px;
+}
+
+.errori-list,
+.warnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.errore-item,
+.warning-item {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ok-text {
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .presidio-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .presidio-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .validazioni-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .riepilogo-item {
+    flex-direction: column;
+    text-align: center;
+  }
+}

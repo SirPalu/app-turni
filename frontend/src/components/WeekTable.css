@@ -1,0 +1,231 @@
+/* Stili Tabella Turni */
+
+.week-table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.week-table-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.week-table-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.week-table-wrapper {
+  overflow-x: auto;
+}
+
+.week-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.week-table th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 10px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #5a67d8;
+}
+
+.dipendente-col {
+  min-width: 150px;
+  text-align: left !important;
+  padding-left: 15px !important;
+}
+
+.giorno-col {
+  min-width: 120px;
+}
+
+.giorno-header {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.giorno-nome {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.giorno-data {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.week-table td {
+  padding: 12px 8px;
+  border: 1px solid #e0e0e0;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.dipendente-cell {
+  text-align: left !important;
+  padding-left: 15px !important;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+.turno-cell {
+  position: relative;
+  min-height: 80px;
+  cursor: default;
+}
+
+.turno-cell.editable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.turno-cell.editable:hover {
+  background-color: #f0f0f0;
+}
+
+.turno-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px;
+}
+
+.turno-orario {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.turno-tipo {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.turno-ore {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+.turno-empty {
+  color: #999;
+  font-size: 13px;
+  padding: 10px;
+}
+
+/* Colori per tipo turno */
+.turno-apertura {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.turno-apertura .turno-tipo {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.turno-centrale {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.turno-centrale .turno-tipo {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.turno-chiusura {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.turno-chiusura .turno-tipo {
+  background-color: #dc3545;
+  color: white;
+}
+
+.turno-ferie {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.turno-ferie .turno-tipo {
+  background-color: #28a745;
+  color: white;
+}
+
+.turno-malattia {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.week-table-loading,
+.week-table-error {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+}
+
+.week-table-error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border-radius: 5px;
+  border: 1px solid #f5c6cb;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 40px !important;
+  color: #999;
+  font-style: italic;
+}
+
+.week-table-legend {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .week-table-wrapper {
+    overflow-x: scroll;
+  }
+  
+  .giorno-nome {
+    font-size: 12px;
+  }
+  
+  .turno-orario {
+    font-size: 12px;
+  }
+}
