@@ -140,12 +140,16 @@
   color: #212529;
 }
 
-.turno-centrale {
+.turno-centrale,
+.turno-centrale-a,
+.turno-centrale-b {
   background-color: #d1ecf1;
   color: #0c5460;
 }
 
-.turno-centrale .turno-tipo {
+.turno-centrale .turno-tipo,
+.turno-centrale-a .turno-tipo,
+.turno-centrale-b .turno-tipo {
   background-color: #17a2b8;
   color: white;
 }
@@ -173,6 +177,15 @@
 .turno-malattia {
   background-color: #e2e3e5;
   color: #383d41;
+}
+.turno-off {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.turno-off .turno-tipo {
+  background-color: #6c757d;
+  color: white;
 }
 
 .week-table-loading,

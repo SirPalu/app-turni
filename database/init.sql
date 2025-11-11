@@ -51,7 +51,7 @@ CREATE TABLE turni (
     giorno_settimana INTEGER NOT NULL CHECK (giorno_settimana BETWEEN 0 AND 6),
     ora_inizio TIME NOT NULL,
     ora_fine TIME NOT NULL,
-    tipo_turno VARCHAR(20) NOT NULL CHECK (tipo_turno IN ('APERTURA', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA')),
+    tipo_turno VARCHAR(20) NOT NULL CHECK (tipo_turno IN ('APERTURA', 'CENTRALE', 'CENTRALE-A', 'CENTRALE-B', 'CHIUSURA', 'FERIE', 'MALATTIA', 'OFF')),
     ore_effettive DECIMAL(4,2) GENERATED ALWAYS AS (
         EXTRACT(EPOCH FROM (ora_fine - ora_inizio)) / 3600
     ) STORED,

@@ -125,8 +125,12 @@ const DashboardAmministratore = () => {
 
     try {
       const response = await importaPreferenze(selectedWeek);
-      alert(`✅ ${response.data.turniImportati} preferenze importate!\n(${response.data.turniEsistentiSkip} turni già esistenti saltati)`);
-      setPreferenzeImportate(true);
+      if (response.data.turniImportati === 0 && response.data.totalePreferenze === 0) {
+      alert('ℹ️ Nessuna preferenza da importare.\n\nPuoi comunque procedere con la pianificazione manuale o automatica.');
+    } else {
+           alert(`✅ ${response.data.turniImportati} preferenze importate!\n(${response.data.turniEsistentiSkip} turni già esistenti saltati)`);
+      }
+           setPreferenzeImportate(true);
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       alert('❌ Errore: ' + (err.response?.data?.error || err.message));
@@ -134,10 +138,7 @@ const DashboardAmministratore = () => {
   };
 
   const handleAutoGenera = async () => {
-    if (!preferenzeImportate) {
-      alert('⚠️ Prima importa le preferenze dei dipendenti!');
-      return;
-    }
+   
 
     if (!window.confirm('Vuoi generare automaticamente la pianificazione?\n\nI turni già inseriti verranno mantenuti.')) {
       return;
@@ -318,13 +319,12 @@ const DashboardAmministratore = () => {
               )}
               
               <button 
-                className="btn-action primary" 
-                onClick={handleAutoGenera}
-                disabled={generandoPiano || !preferenzeImportate}
-                title={!preferenzeImportate ? 'Prima importa le preferenze' : ''}
-              >
-                {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
-              </button>
+  className="btn-action primary" 
+  onClick={handleAutoGenera}
+  disabled={generandoPiano}
+>
+  {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
+</button>
               
               <button className="btn-action">
                 📤 Pubblica Bozza

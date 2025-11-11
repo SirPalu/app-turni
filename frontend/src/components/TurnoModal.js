@@ -1,10 +1,10 @@
-// Modal per inserimento/modifica turno - CON ORARI MODULARI
+// Modal per inserimento/modifica turno - CON ORARI MODULARI E OFF
 import React, { useState, useEffect } from 'react';
 import { createOrUpdateTurno, deleteTurno, getUserById } from '../api/axios';
 import './TurnoModal.css';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const TIPI_TURNO = ['APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA'];
+const TIPI_TURNO = ['OFF', 'APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA'];
 
 // Calcola ore giornaliere in base a contratto
 const calcolaOreGiornaliere = (oreSettimanali) => {
@@ -49,7 +49,8 @@ const getOrariPredefiniti = (tipoTurno, oreGiorno) => {
       8: { inizio: '14:00', fine: '22:00' }
     },
     FERIE: { inizio: '00:00', fine: '00:00' },
-    MALATTIA: { inizio: '00:00', fine: '00:00' }
+    MALATTIA: { inizio: '00:00', fine: '00:00' },
+    OFF: { inizio: '00:00', fine: '00:00' }
   };
 
   return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: '09:30', fine: '17:30' };
@@ -174,6 +175,7 @@ const TurnoModal = ({
   if (!isOpen) return null;
 
   const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
+  const mostraOrari = !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -223,7 +225,7 @@ const TurnoModal = ({
             </div>
           </div>
 
-          {tipoTurno !== 'FERIE' && tipoTurno !== 'MALATTIA' && (
+          {mostraOrari && (
             <div className="form-section">
               <div className="orari-group">
                 <div className="form-group">

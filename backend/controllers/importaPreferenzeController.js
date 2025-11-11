@@ -29,8 +29,12 @@ const importaPreferenze = async (req, res) => {
     );
 
     if (prefResult.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'Nessuna preferenza trovata per questa settimana' 
+      // **FIX: Se non ci sono preferenze, non è un errore!**
+      return res.json({
+        message: 'Nessuna preferenza da importare',
+        turniImportati: 0,
+        turniEsistentiSkip: 0,
+        totalePreferenze: 0
       });
     }
 
@@ -48,15 +52,31 @@ const importaPreferenze = async (req, res) => {
 
       if (turnoCheck.rows.length > 0) {
         // Turno già esistente, salta
-        turnoEsistentiSkip++;
+        turniEsistentiSkip++;
         continue;
       }
 
       // Determina tipo turno da preferenza
       let tipoTurno = pref.tipo_preferenza; // OFF, APERTURA, CHIUSURA
 
+      // **FIX: Gestisci OFF come turno esplicito**
       if (tipoTurno === 'OFF') {
-        // OFF non crea turno, salta
+        // Inserisci turno OFF con orari 00:00
+        await query(
+          `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (user_id, settimana, giorno_settimana) DO NOTHING`,
+          [
+            pref.user_id,
+            settimana,
+            pref.giorno_settimana,
+            '00:00:00',
+            '00:00:00',
+            'OFF'
+          ]
+        );
+        turniImportati++;
+        console.log(`  ✓ ${pref.nome}: OFF giorno ${pref.giorno_settimana}`);
         continue;
       }
 

@@ -71,16 +71,19 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
   };
 
   // Determina colore in base al tipo turno
-  const getTurnoClass = (tipo) => {
-    switch (tipo) {
-      case 'APERTURA': return 'turno-apertura';
-      case 'CENTRALE': return 'turno-centrale';
-      case 'CHIUSURA': return 'turno-chiusura';
-      case 'FERIE': return 'turno-ferie';
-      case 'MALATTIA': return 'turno-malattia';
-      default: return '';
-    }
-  };
+const getTurnoClass = (tipo) => {
+  switch (tipo) {
+    case 'APERTURA': return 'turno-apertura';
+    case 'CENTRALE': return 'turno-centrale';
+    case 'CENTRALE-A': return 'turno-centrale-a';
+    case 'CENTRALE-B': return 'turno-centrale-b';
+    case 'CHIUSURA': return 'turno-chiusura';
+    case 'FERIE': return 'turno-ferie';
+    case 'MALATTIA': return 'turno-malattia';
+    case 'OFF': return 'turno-off';
+    default: return '';
+  }
+};
 
   if (loading) {
     return <div className="week-table-loading">Caricamento turni...</div>;
@@ -140,25 +143,33 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
                         className={`turno-cell ${turno ? getTurnoClass(turno.tipo_turno) : ''} ${editable ? 'editable' : ''}`}
                         onClick={() => editable && onTurnoClick && onTurnoClick(utente.id, giorno, turno)}
                       >
-                        {turno ? (
-                          <div className="turno-content">
-                            <div className="turno-orario">
-                              {formatTime(turno.ora_inizio)} - {formatTime(turno.ora_fine)}
-                            </div>
-                            <div className="turno-tipo">
-                              {turno.tipo_turno}
-                            </div>
-                            {turno.ore_effettive && (
-                              <div className="turno-ore">
-                                {turno.ore_effettive}h
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="turno-empty">
-                            {editable ? '+ Aggiungi' : 'OFF'}
-                          </div>
-                        )}
+                    {turno ? (
+                      turno.tipo_turno === 'OFF' ? (
+                    <div className="turno-content">
+      <div className="turno-tipo" style={{ backgroundColor: '#6c757d', color: 'white' }}>
+        OFF
+      </div>
+    </div>
+  ) : (
+    <div className="turno-content">
+      <div className="turno-orario">
+        {formatTime(turno.ora_inizio)} - {formatTime(turno.ora_fine)}
+      </div>
+      <div className="turno-tipo">
+        {turno.tipo_turno}
+      </div>
+      {turno.ore_effettive && (
+        <div className="turno-ore">
+          {turno.ore_effettive}h
+        </div>
+      )}
+    </div>
+  )
+) : (
+  <div className="turno-empty">
+    {editable ? '+ Aggiungi' : '-'}
+  </div>
+)}
                       </td>
                     );
                   })}

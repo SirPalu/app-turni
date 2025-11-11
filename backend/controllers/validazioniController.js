@@ -14,18 +14,21 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
   const turni = result.rows;
   
   let ore_lavorate = 0;
-  let giorni_off = 7; // Parte da 7, sottrae i giorni lavorati
+  let giorni_off = 0; // Conta gli OFF espliciti
   let chiusure = 0;
   let aperture = 0;
   let pfes = 0; // Sabati
   let fes = 0;  // Domeniche
 
   turni.forEach(turno => {
+    if (turno.tipo_turno === 'OFF') {
+      giorni_off++;
+      return; // Non conta ore per OFF
+    }
+
     if (turno.ore_effettive) {
       ore_lavorate += parseFloat(turno.ore_effettive);
     }
-    
-    giorni_off--; // Toglie un OFF per ogni giorno lavorato
     
     if (turno.tipo_turno === 'CHIUSURA') chiusure++;
     if (turno.tipo_turno === 'APERTURA') aperture++;
@@ -66,12 +69,12 @@ const validaDipendente = async (userId, settimana) => {
   const warnings = [];
   const errori = [];
 
-  // Validazione 1: Deve avere 2 OFF
+  // Validazione 1: Deve avere esattamente 2 OFF
   if (contatori.giorni_off < 2) {
-    errori.push(`Ha solo ${contatori.giorni_off} giorni OFF (minimo 2)`);
+    errori.push(`Ha solo ${contatori.giorni_off} giorni OFF (obbligatori 2)`);
   }
   if (contatori.giorni_off > 2) {
-    warnings.push(`Ha ${contatori.giorni_off} giorni OFF (lavora solo ${7 - contatori.giorni_off} giorni)`);
+    warnings.push(`Ha ${contatori.giorni_off} giorni OFF (standard 2)`);
   }
 
   // Validazione 2: Max 2 chiusure
@@ -88,17 +91,10 @@ const validaDipendente = async (userId, settimana) => {
     warnings.push(`Ore lavorate: ${ore_effettive}h (previste: ${ore_previste}h, diff: ${differenza.toFixed(1)}h)`);
   }
 
-  // Validazione 4: Turni con chiavi
-  const turniResult = await query(
-    `SELECT * FROM turni 
-     WHERE user_id = $1 AND settimana = $2 
-     AND tipo_turno IN ('APERTURA', 'CHIUSURA')`,
-    [userId, settimana]
-  );
-
-  if (turniResult.rows.length > 0 && !user.ha_chiavi) {
-    errori.push('Assegnato ad apertura/chiusura ma NON ha le chiavi!');
-  }
+  // **FIX VALIDAZIONE 4: Controlla chiavi PER GIORNO, non per utente**
+  // Questa validazione ora viene fatta solo nel presidio giornaliero
+  // Qui NON mettiamo più errori per singolo dipendente senza chiavi
+  // perché un collega potrebbe averle
 
   return {
     userId,
@@ -113,18 +109,40 @@ const validaDipendente = async (userId, settimana) => {
 /**
  * VALIDA PRESIDIO GIORNALIERO
  * Verifica che ogni ora del giorno abbia abbastanza persone
+ * E che ci sia ALMENO UNA persona con chiavi per aperture/chiusure
  */
 const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') => {
   const turniResult = await query(
-    `SELECT t.*, u.nome 
+    `SELECT t.*, u.nome, u.ha_chiavi 
      FROM turni t
      JOIN users u ON t.user_id = u.id
-     WHERE t.settimana = $1 AND t.giorno_settimana = $2
+     WHERE t.settimana = $1 AND t.giorno_settimana = $2 AND t.tipo_turno != 'OFF'
      ORDER BY t.ora_inizio`,
     [settimana, giorno]
   );
 
   const turni = turniResult.rows;
+  const problemi = [];
+
+  // **FIX CHIAVI: Verifica che almeno UNA persona con chiavi copra apertura E chiusura**
+  const turniApertura = turni.filter(t => t.tipo_turno === 'APERTURA');
+  const turniChiusura = turni.filter(t => t.tipo_turno === 'CHIUSURA');
+  
+  // Controlla se c'è almeno una persona con chiavi in APERTURA (se ci sono aperture)
+  if (turniApertura.length > 0) {
+    const personaConChiaviApertura = turniApertura.some(t => t.ha_chiavi);
+    if (!personaConChiaviApertura) {
+      problemi.push('⚠️ Nessun dipendente con chiavi in APERTURA!');
+    }
+  }
+  
+  // Controlla se c'è almeno una persona con chiavi in CHIUSURA (se ci sono chiusure)
+  if (turniChiusura.length > 0) {
+    const personaConChiaviChiusura = turniChiusura.some(t => t.ha_chiavi);
+    if (!personaConChiaviChiusura) {
+      problemi.push('⚠️ Nessun dipendente con chiavi in CHIUSURA!');
+    }
+  }
 
   // Definisci requisiti presidio
   const requisiti = tipoPresidio === 'rinforzato' ? {
@@ -163,8 +181,6 @@ const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') =>
   });
 
   // Verifica requisiti
-  const problemi = [];
-  
   if (tipoPresidio === 'base') {
     if (copertura['10:00'] < 2 || copertura['13:00'] < 2) {
       problemi.push('Presidio insufficiente prima delle 13:30 (min 2 persone)');
