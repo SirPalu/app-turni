@@ -7,9 +7,9 @@ const { query } = require('../config/database');
  */
 const calcolaContatoriDipendente = async (userId, settimana) => {
   const result = await query(
-    `SELECT * FROM turni WHERE user_id = $1 AND settimana = $2`,
-    [userId, settimana]
-  );
+  `SELECT * FROM turni WHERE user_id = $1 AND settimana = $2`,
+  [userId, settimana]
+);
 
   const turni = result.rows;
   
@@ -21,14 +21,15 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
   let fes = 0;  // Domeniche
 
   turni.forEach(turno => {
-    if (turno.tipo_turno === 'OFF') {
-      giorni_off++;
-      return; // Non conta ore per OFF
-    }
+  if (turno.tipo_turno === 'OFF') {
+    giorni_off++;
+    return; // Non conta ore per OFF
+  }
 
-    if (turno.ore_effettive) {
-      ore_lavorate += parseFloat(turno.ore_effettive);
-    }
+  // Le ore_effettive sono già calcolate correttamente dal trigger DB
+  if (turno.ore_effettive) {
+    ore_lavorate += parseFloat(turno.ore_effettive);
+  }
     
     if (turno.tipo_turno === 'CHIUSURA') chiusure++;
     if (turno.tipo_turno === 'APERTURA') aperture++;

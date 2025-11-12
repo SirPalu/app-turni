@@ -83,25 +83,60 @@ const createOrUpdateTurno = async (req, res) => {
       });
     }
 
-    // Verifica che utente esista
-    const userCheck = await query('SELECT id FROM users WHERE id = $1', [user_id]);
+    // Verifica che utente esista e ottieni ore settimanali
+    const userCheck = await query(
+      'SELECT id, ore_settimanali FROM users WHERE id = $1', 
+      [user_id]
+    );
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Utente non trovato' });
     }
 
+    const oreSettimanali = userCheck.rows[0].ore_settimanali;
+
+    // Calcola ore_effettive per FERIE/MALATTIA
+    let oreEffettive = null;
+    if (tipo_turno === 'FERIE' || tipo_turno === 'MALATTIA') {
+      // Formula: ore_settimanali / 6, con eccezione per 40h = 8h
+      if (oreSettimanali === 40) {
+        oreEffettive = 8;
+      } else {
+        oreEffettive = Math.round((oreSettimanali / 6) * 10) / 10;
+      }
+    }
+
     // UPSERT: inserisci o aggiorna se esiste già
-    const result = await query(
-      `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (user_id, settimana, giorno_settimana)
-       DO UPDATE SET 
-         ora_inizio = EXCLUDED.ora_inizio,
-         ora_fine = EXCLUDED.ora_fine,
-         tipo_turno = EXCLUDED.tipo_turno,
-         updated_at = CURRENT_TIMESTAMP
-       RETURNING *`,
-      [user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno]
-    );
+    let result;
+    if (oreEffettive !== null) {
+      // Per FERIE/MALATTIA impostiamo ore_effettive manualmente
+      result = await query(
+        `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id, settimana, giorno_settimana)
+         DO UPDATE SET 
+           ora_inizio = EXCLUDED.ora_inizio,
+           ora_fine = EXCLUDED.ora_fine,
+           tipo_turno = EXCLUDED.tipo_turno,
+           ore_effettive = EXCLUDED.ore_effettive,
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, oreEffettive]
+      );
+    } else {
+      // Per altri turni, il trigger calcola automaticamente
+      result = await query(
+        `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id, settimana, giorno_settimana)
+         DO UPDATE SET 
+           ora_inizio = EXCLUDED.ora_inizio,
+           ora_fine = EXCLUDED.ora_fine,
+           tipo_turno = EXCLUDED.tipo_turno,
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno]
+      );
+    }
 
     res.status(201).json({
       message: 'Turno salvato con successo',

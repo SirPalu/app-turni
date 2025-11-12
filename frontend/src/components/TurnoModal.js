@@ -15,45 +15,56 @@ const calcolaOreGiornaliere = (oreSettimanali) => {
   return 5;
 };
 
-// Orari predefiniti modulari
-const getOrariPredefiniti = (tipoTurno, oreGiorno) => {
+// Orari predefiniti modulari CON PAUSA PRANZO
+const getOrariPredefiniti = (tipoTurno, oreGiorno, oreSettimanali = 36, giornoSettimana = 0) => {
+  const conPausa = oreSettimanali >= 30;
+  
+  // MARTEDÌ (1) e GIOVEDÌ (3) hanno apertura alle 9:00
+  const oraApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? '09:00' : '09:30';
+  
   const orari = {
     APERTURA: {
-      5: { inizio: '09:30', fine: '14:30' },
-      6: { inizio: '09:30', fine: '15:30' },
-      7: { inizio: '09:30', fine: '16:30' },
-      8: { inizio: '09:30', fine: '17:30' }
+      5: { inizio: oraApertura, fine: conPausa ? '15:00' : '14:30' },
+      6: { inizio: oraApertura, fine: conPausa ? '16:00' : '15:30' },
+      7: { inizio: oraApertura, fine: conPausa ? '17:00' : '16:30' },
+      8: { inizio: oraApertura, fine: conPausa ? '18:00' : '17:30' }
     },
     'CENTRALE-A': {
-      5: { inizio: '12:00', fine: '17:00' },
-      6: { inizio: '12:00', fine: '18:00' },
-      7: { inizio: '12:00', fine: '19:00' },
-      8: { inizio: '11:00', fine: '19:00' }
+      5: { inizio: '12:00', fine: conPausa ? '17:30' : '17:00' },
+      6: { inizio: '12:00', fine: conPausa ? '18:30' : '18:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '11:00', fine: conPausa ? '19:30' : '19:00' }
     },
     'CENTRALE-B': {
-      5: { inizio: '14:00', fine: '19:00' },
-      6: { inizio: '14:00', fine: '20:00' },
-      7: { inizio: '13:00', fine: '20:00' },
-      8: { inizio: '13:00', fine: '21:00' }
+      5: { inizio: '14:00', fine: conPausa ? '19:30' : '19:00' },
+      6: { inizio: '14:00', fine: conPausa ? '20:30' : '20:00' },
+      7: { inizio: '13:00', fine: conPausa ? '20:30' : '20:00' },
+      8: { inizio: '13:00', fine: conPausa ? '21:30' : '21:00' }
     },
     CENTRALE: {
-      5: { inizio: '13:00', fine: '18:00' },
-      6: { inizio: '13:00', fine: '19:00' },
-      7: { inizio: '12:00', fine: '19:00' },
-      8: { inizio: '12:00', fine: '20:00' }
+      5: { inizio: '13:00', fine: conPausa ? '18:30' : '18:00' },
+      6: { inizio: '13:00', fine: conPausa ? '19:30' : '19:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '12:00', fine: conPausa ? '20:30' : '20:00' }
     },
     CHIUSURA: {
-      5: { inizio: '17:00', fine: '22:00' },
-      6: { inizio: '16:00', fine: '22:00' },
-      7: { inizio: '15:00', fine: '22:00' },
-      8: { inizio: '14:00', fine: '22:00' }
+      5: { inizio: conPausa ? '16:30' : '17:00', fine: '22:00' },
+      6: { inizio: conPausa ? '15:30' : '16:00', fine: '22:00' },
+      7: { inizio: conPausa ? '14:30' : '15:00', fine: '22:00' },
+      8: { inizio: conPausa ? '13:30' : '14:00', fine: '22:00' }
     },
     FERIE: { inizio: '00:00', fine: '00:00' },
     MALATTIA: { inizio: '00:00', fine: '00:00' },
     OFF: { inizio: '00:00', fine: '00:00' }
   };
 
-  return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: '09:30', fine: '17:30' };
+  return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: oraApertura, fine: '17:30' };
+};
+
+// Calcola ore per FERIE/MALATTIA in base a contratto
+const calcolaOreFerieMalattia = (oreSettimanali) => {
+  if (oreSettimanali === 40) return 8;
+  return Math.round((oreSettimanali / 6) * 10) / 10;
 };
 
 const TurnoModal = ({ 
@@ -89,7 +100,7 @@ const TurnoModal = ({
       // Nuovo turno - imposta default in base a ore contratto
       setTipoTurno('APERTURA');
       const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
-      const orari = getOrariPredefiniti('APERTURA', oreGiorno);
+      const orari = getOrariPredefiniti('APERTURA', oreGiorno, oreSettimanali, giorno);
       setOraInizio(orari.inizio);
       setOraFine(orari.fine);
     }
@@ -109,22 +120,34 @@ const TurnoModal = ({
     setTipoTurno(tipo);
     // Imposta orari modulari in base al tipo e ore giornaliere
     const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
-    const orari = getOrariPredefiniti(tipo, oreGiorno);
+    const orari = getOrariPredefiniti(tipo, oreGiorno, oreSettimanali, giorno);
     setOraInizio(orari.inizio);
     setOraFine(orari.fine);
   };
 
   const calcolaOre = () => {
-    if (!oraInizio || !oraFine) return 0;
-    
-    const [hInizio, mInizio] = oraInizio.split(':').map(Number);
-    const [hFine, mFine] = oraFine.split(':').map(Number);
-    
-    const minInizio = hInizio * 60 + mInizio;
-    const minFine = hFine * 60 + mFine;
-    
-    return ((minFine - minInizio) / 60).toFixed(1);
-  };
+  // FERIE e MALATTIA usano calcolo proporzionato
+  if (tipoTurno === 'FERIE' || tipoTurno === 'MALATTIA') {
+    return calcolaOreFerieMalattia(oreSettimanali);
+  }
+  
+  if (!oraInizio || !oraFine) return 0;
+  
+  const [hInizio, mInizio] = oraInizio.split(':').map(Number);
+  const [hFine, mFine] = oraFine.split(':').map(Number);
+  
+  const minInizio = hInizio * 60 + mInizio;
+  const minFine = hFine * 60 + mFine;
+  
+  let oreTotali = (minFine - minInizio) / 60;
+  
+  // Sottrai pausa pranzo se >= 30h contratto
+  if (oreSettimanali >= 30 && !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno)) {
+    oreTotali -= 0.5; // -30 minuti
+  }
+  
+  return oreTotali.toFixed(1);
+};
 
   const handleSave = async () => {
     try {
