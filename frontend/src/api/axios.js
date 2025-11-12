@@ -134,3 +134,11 @@ export const getConfigPresidio = (settimana) => {
 export const updatePresidioGiorno = (settimana, giorno, tipo) => {
   return axiosInstance.put(`/presidio/config/${settimana}/giorno/${giorno}`, { tipo });
 };
+// STORICO
+export const getStoricoRiassuntivo = () => {
+  return axiosInstance.get('/storico/riassuntivo');
+};
+
+export const getStoricoDettaglioDipendente = (userId) => {
+  return axiosInstance.get(`/storico/dipendente/${userId}`);
+};

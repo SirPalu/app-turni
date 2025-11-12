@@ -1,0 +1,104 @@
+/* Stili Storico Contatori */
+
+.storico-panel {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  margin: 20px 0;
+}
+
+.storico-header {
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.storico-header h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.storico-subtitle {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.storico-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.stat-box {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-box-label {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.stat-box-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.storico-table-wrapper {
+  overflow-x: auto;
+}
+
+.storico-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.storico-table th {
+  background-color: #f8f9fa;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #e0e0e0;
+}
+
+.storico-table td {
+  padding: 12px 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.storico-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.diff-positive {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.diff-negative {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.diff-neutral {
+  color: #6c757d;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}

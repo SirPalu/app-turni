@@ -13,18 +13,22 @@ import {
 import WeekTable from '../components/WeekTable';
 import TurnoModal from '../components/TurnoModal';
 import ValidazioniPanel from '../components/ValidazioniPanel';
+import StoricoPanel from '../components/StoricoPanel';
 import './Dashboard.css';
 import './DashboardAmministratore.css';
 
 const DashboardAmministratore = () => {
   const { user, logout } = useAuth();
   
-  // Calcola lunedì corrente e prossimo
+  // Calcola lunedì passato, corrente e prossimo
   const today = new Date();
   const currentMonday = new Date(today);
   currentMonday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
   currentMonday.setHours(0, 0, 0, 0);
-  
+
+  const previousMonday = new Date(currentMonday);
+  previousMonday.setDate(currentMonday.getDate() - 7);
+
   const nextMonday = new Date(currentMonday);
   nextMonday.setDate(currentMonday.getDate() + 7);
   
@@ -126,11 +130,11 @@ const DashboardAmministratore = () => {
     try {
       const response = await importaPreferenze(selectedWeek);
       if (response.data.turniImportati === 0 && response.data.totalePreferenze === 0) {
-      alert('ℹ️ Nessuna preferenza da importare.\n\nPuoi comunque procedere con la pianificazione manuale o automatica.');
-    } else {
-           alert(`✅ ${response.data.turniImportati} preferenze importate!\n(${response.data.turniEsistentiSkip} turni già esistenti saltati)`);
+        alert('ℹ️ Nessuna preferenza da importare.\n\nPuoi comunque procedere con la pianificazione manuale o automatica.');
+      } else {
+        alert(`✅ ${response.data.turniImportati} preferenze importate!\n(${response.data.turniEsistentiSkip} turni già esistenti saltati)`);
       }
-           setPreferenzeImportate(true);
+      setPreferenzeImportate(true);
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       alert('❌ Errore: ' + (err.response?.data?.error || err.message));
@@ -138,8 +142,6 @@ const DashboardAmministratore = () => {
   };
 
   const handleAutoGenera = async () => {
-   
-
     if (!window.confirm('Vuoi generare automaticamente la pianificazione?\n\nI turni già inseriti verranno mantenuti.')) {
       return;
     }
@@ -286,23 +288,37 @@ const DashboardAmministratore = () => {
         >
           📋 Visualizza Preferenze
         </button>
+        <button 
+          className={`tab ${viewMode === 'storico' ? 'active' : ''}`}
+          onClick={() => setViewMode('storico')}
+        >
+          📊 Storico Contatori
+        </button>
       </div>
 
       {/* Selettore Settimana */}
-      <div className="week-selector">
-        <button 
-          className="week-btn"
-          onClick={() => setSelectedWeek(currentMonday.toISOString().split('T')[0])}
-        >
-          Settimana Corrente
-        </button>
-        <button 
-          className="week-btn"
-          onClick={() => setSelectedWeek(nextMonday.toISOString().split('T')[0])}
-        >
-          Prossima Settimana
-        </button>
-      </div>
+      {viewMode !== 'storico' && (
+        <div className="week-selector">
+          <button 
+            className="week-btn"
+            onClick={() => setSelectedWeek(previousMonday.toISOString().split('T')[0])}
+          >
+            Settimana Passata
+          </button>
+          <button 
+            className="week-btn"
+            onClick={() => setSelectedWeek(currentMonday.toISOString().split('T')[0])}
+          >
+            Settimana Corrente
+          </button>
+          <button 
+            className="week-btn"
+            onClick={() => setSelectedWeek(nextMonday.toISOString().split('T')[0])}
+          >
+            Prossima Settimana
+          </button>
+        </div>
+      )}
 
       {/* Contenuto */}
       <div className="dashboard-content">
@@ -319,12 +335,12 @@ const DashboardAmministratore = () => {
               )}
               
               <button 
-  className="btn-action primary" 
-  onClick={handleAutoGenera}
-  disabled={generandoPiano}
->
-  {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
-</button>
+                className="btn-action primary" 
+                onClick={handleAutoGenera}
+                disabled={generandoPiano}
+              >
+                {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
+              </button>
               
               <button className="btn-action">
                 📤 Pubblica Bozza
@@ -364,6 +380,8 @@ const DashboardAmministratore = () => {
         )}
 
         {viewMode === 'preferenze' && renderPreferenzeGrid()}
+
+        {viewMode === 'storico' && <StoricoPanel />}
       </div>
 
       {/* Modal Turno */}

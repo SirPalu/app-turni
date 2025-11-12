@@ -102,12 +102,12 @@ const startServer = async () => {
     // Test connessione database
     console.log('🔍 Test connessione database...');
     const dbConnected = await testConnection();
-    
-    if (!dbConnected) {
+        if (!dbConnected) {
       console.error('❌ Impossibile connettersi al database. Server non avviato.');
       process.exit(1);
     }
-
+    // ✅ Avvia scheduler archiviazione
+    avviaScheduler();
     // Avvia server
     app.listen(PORT, () => {
       console.log('');
@@ -141,5 +141,12 @@ process.on('SIGINT', () => {
 });
 const presidioRoutes = require('./routes/presidioRoutes');
 app.use('/api/presidio', presidioRoutes);
+
+// Import scheduler e route storico
+const { avviaScheduler } = require('./scheduler/archiviazione');
+const storicoRoutes = require('./routes/storicoRoutes');
+
+// Mount route storico
+app.use('/api/storico', storicoRoutes);
 
 startServer();
