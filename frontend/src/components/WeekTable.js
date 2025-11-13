@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTurniSettimana, getAllUsers } from '../api/axios';
 import './WeekTable.css';
+import GiornoDetailModal from './GiornoDetailModal';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
@@ -10,6 +11,8 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
   const [utenti, setUtenti] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedGiornoDetail, setSelectedGiornoDetail] = useState(null);
 
   useEffect(() => {
     loadTurni();
@@ -106,21 +109,32 @@ const getTurnoClass = (tipo) => {
       <div className="week-table-wrapper">
         <table className="week-table">
           <thead>
-            <tr>
-              <th className="dipendente-col">Dipendente</th>
-              {GIORNI.map((giorno, idx) => (
-                <th key={idx} className="giorno-col">
-                  <div className="giorno-header">
-                    <div className="giorno-nome">{giorno}</div>
-                    <div className="giorno-data">
-                      {new Date(new Date(settimana).getTime() + idx * 86400000)
-                        .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
-                    </div>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
+  <tr>
+    <th className="dipendente-col">Dipendente</th>
+    {GIORNI.map((giorno, idx) => (
+      <th key={idx} className="giorno-col">
+        <div 
+          className="giorno-header"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            setSelectedGiornoDetail(idx);
+            setDetailModalOpen(true);
+          }}
+          title="Clicca per vedere il dettaglio del presidio"
+        >
+          <div className="giorno-nome">
+            {giorno} 
+            <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '5px' }}>🔍</span>
+          </div>
+          <div className="giorno-data">
+            {new Date(new Date(settimana).getTime() + idx * 86400000)
+              .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+          </div>
+        </div>
+      </th>
+    ))}
+  </tr>
+</thead>
           <tbody>
             {utenti.length === 0 ? (
               <tr>
@@ -189,6 +203,13 @@ const getTurnoClass = (tipo) => {
           <span className="legend-item turno-ferie">Ferie</span>
         </div>
       )}
+       {/* Modal Dettaglio Giorno */}
+      <GiornoDetailModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        settimana={settimana}
+        giorno={selectedGiornoDetail}
+      />
     </div>
   );
 };

@@ -242,3 +242,16 @@
     font-size: 12px;
   }
 }
+/* Hover effect per header giorni cliccabili */
+.giorno-header:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.02);
+  transition: all 0.2s;
+}
+
+.giorno-header {
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
