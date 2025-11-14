@@ -4,7 +4,7 @@
 -- 1. Rimuovi colonna calcolata automaticamente
 ALTER TABLE turni DROP COLUMN IF EXISTS ore_effettive;
 
--- 2. Ricrea come colonna normale (non più GENERATED)
+-- 2. Ricrea come colonna normale
 ALTER TABLE turni ADD COLUMN ore_effettive DECIMAL(4,2);
 
 -- 3. Crea funzione trigger per calcolo automatico con pausa
@@ -16,8 +16,6 @@ DECLARE
 BEGIN
   -- Se OFF, FERIE o MALATTIA, gestito a parte
   IF NEW.tipo_turno IN ('OFF', 'FERIE', 'MALATTIA') THEN
-    -- Per FERIE/MALATTIA le ore vengono impostate dal backend
-    -- Per OFF resta NULL o 0
     IF NEW.ore_effettive IS NULL AND NEW.tipo_turno = 'OFF' THEN
       NEW.ore_effettive := 0;
     END IF;
@@ -32,7 +30,7 @@ BEGIN
   FROM users u
   WHERE u.id = NEW.user_id;
 
-  -- Se >= 30h contratto, sottrai 30 minuti (0.5h) per pausa pranzo
+  -- SOLO se >= 30h contratto, sottrai 30 minuti (0.5h) per pausa pranzo
   IF ore_settimanali >= 30 THEN
     ore_calcolate := ore_calcolate - 0.5;
   END IF;
@@ -58,4 +56,4 @@ CREATE TRIGGER trigger_calcola_ore_effettive
 UPDATE turni t
 SET ora_inizio = t.ora_inizio; -- Forza il trigger
 
-COMMENT ON COLUMN turni.ore_effettive IS 'Ore effettive lavorate (con sottrazione pausa pranzo 30min per contratti >= 30h)';
+COMMENT ON COLUMN turni.ore_effettive IS 'Ore effettive lavorate (con sottrazione pausa pranzo 30min SOLO per contratti >= 30h)';

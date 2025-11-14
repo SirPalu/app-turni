@@ -151,12 +151,23 @@ const DashboardAmministratore = () => {
       
       const response = await generaPianificazioneAutomatica(selectedWeek, { presidio: configPresidio });
       
-      alert(`✅ Pianificazione generata!\n\n${response.data.turniGenerati} turni creati\nOre medie: ${response.data.statistiche.ore_medie}h`);
+      const { turniGenerati, giorniVerdi, tentativiEffettuati } = response.data;
       
+      // Messaggio di successo con dettagli
+      const messaggioSuccesso = `✅ Pianificazione generata!\n\n` +
+        `📊 ${turniGenerati} turni creati\n` +
+        `🟢 ${giorniVerdi}/7 giorni con presidio valido\n` +
+        `🔄 ${tentativiEffettuati} tentativi effettuati`;
+      
+      alert(messaggioSuccesso);
+      
+      // Refresh della tabella
       setRefreshKey(prev => prev + 1);
+      
     } catch (err) {
       console.error('Errore generazione:', err);
-      alert('❌ Errore nella generazione automatica: ' + (err.response?.data?.error || err.message));
+      const messaggioErrore = err.response?.data?.error || err.message;
+      alert('❌ Errore nella generazione automatica:\n\n' + messaggioErrore);
     } finally {
       setGenerandoPiano(false);
     }
@@ -396,6 +407,23 @@ const DashboardAmministratore = () => {
           settimana={selectedWeek}
           turnoEsistente={selectedTurno.turnoEsistente}
         />
+      )}
+
+      {/* Overlay Generazione in Corso */}
+      {generandoPiano && (
+        <div className="generating-overlay">
+          <div className="generating-content">
+            <div className="generating-spinner"></div>
+            <h3>🤖 Generazione in corso...</h3>
+            <p>
+              L'algoritmo sta elaborando la pianificazione ottimale.<br />
+              Questo potrebbe richiedere alcuni secondi.
+            </p>
+            <div className="generating-progress">
+              Analizzando 100 configurazioni possibili...
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

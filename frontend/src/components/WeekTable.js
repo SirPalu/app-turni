@@ -27,6 +27,8 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
       const turniResponse = await getTurniSettimana(settimana);
       const turniData = turniResponse.data.turni;
       setTurni(turniData);
+      // Log per debug
+    console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
       
       // DIFFERENZIA: Admin vs Dipendente
       if (editable) {

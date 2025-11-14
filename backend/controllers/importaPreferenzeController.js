@@ -1,13 +1,65 @@
 // Controller per importare preferenze in turni
 const { query } = require('../config/database');
-const { calcolaOreGiornaliere, generaOrariTurno } = require('../utils/turniHelpers');
+
+/**
+ * Calcola ore giornaliere in base a contratto
+ */
+const calcolaOreGiornaliere = (oreSettimanali) => {
+  const oreGiorno = oreSettimanali / 5;
+  if (oreGiorno >= 7.5) return 8;
+  if (oreGiorno >= 6.5) return 7;
+  if (oreGiorno >= 5.5) return 6;
+  return 5;
+};
+
+/**
+ * Genera orari turno modulari con pausa pranzo
+ */
+const generaOrariTurno = (tipoTurno, oreSettimanali, giornoSettimana) => {
+  const conPausa = oreSettimanali >= 30;
+  const oraApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? '09:00' : '09:30';
+  const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
+
+  const orari = {
+    APERTURA: {
+      5: { inizio: oraApertura, fine: conPausa ? '15:00' : '14:30' },
+      6: { inizio: oraApertura, fine: conPausa ? '16:00' : '15:30' },
+      7: { inizio: oraApertura, fine: conPausa ? '17:00' : '16:30' },
+      8: { inizio: oraApertura, fine: conPausa ? '18:00' : '17:30' }
+    },
+    CENTRALE: {
+      5: { inizio: '13:00', fine: conPausa ? '18:30' : '18:00' },
+      6: { inizio: '13:00', fine: conPausa ? '19:30' : '19:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '12:00', fine: conPausa ? '20:30' : '20:00' }
+    },
+    'CENTRALE-A': {
+      5: { inizio: '12:00', fine: conPausa ? '17:30' : '17:00' },
+      6: { inizio: '12:00', fine: conPausa ? '18:30' : '18:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '11:00', fine: conPausa ? '19:30' : '19:00' }
+    },
+    'CENTRALE-B': {
+      5: { inizio: '14:00', fine: conPausa ? '19:30' : '19:00' },
+      6: { inizio: '14:00', fine: conPausa ? '20:30' : '20:00' },
+      7: { inizio: '13:00', fine: conPausa ? '20:30' : '20:00' },
+      8: { inizio: '13:00', fine: conPausa ? '21:30' : '21:00' }
+    },
+    CHIUSURA: {
+      5: { inizio: conPausa ? '16:30' : '17:00', fine: '22:00' },
+      6: { inizio: conPausa ? '15:30' : '16:00', fine: '22:00' },
+      7: { inizio: conPausa ? '14:30' : '15:00', fine: '22:00' },
+      8: { inizio: conPausa ? '13:30' : '14:00', fine: '22:00' }
+    }
+  };
+
+  return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: oraApertura, fine: '17:30' };
+};
 
 /**
  * IMPORTA PREFERENZE IN TURNI
  * POST /api/turni/importa-preferenze
  * Body: { settimana }
- * 
- * Converte le preferenze in turni nella tabella
  */
 const importaPreferenze = async (req, res) => {
   try {
@@ -19,7 +71,7 @@ const importaPreferenze = async (req, res) => {
 
     console.log(`📥 Importazione preferenze per settimana ${settimana}`);
 
-    // 1. Carica tutte le preferenze per la settimana
+    // Carica preferenze con info utente
     const prefResult = await query(
       `SELECT p.*, u.ore_settimanali, u.nome
        FROM preferenze p
@@ -29,7 +81,6 @@ const importaPreferenze = async (req, res) => {
     );
 
     if (prefResult.rows.length === 0) {
-      // **FIX: Se non ci sono preferenze, non è un errore!**
       return res.json({
         message: 'Nessuna preferenza da importare',
         turniImportati: 0,
@@ -41,7 +92,6 @@ const importaPreferenze = async (req, res) => {
     let turniImportati = 0;
     let turniEsistentiSkip = 0;
 
-    // 2. Per ogni preferenza, crea il turno corrispondente
     for (const pref of prefResult.rows) {
       // Verifica se esiste già un turno
       const turnoCheck = await query(
@@ -51,40 +101,29 @@ const importaPreferenze = async (req, res) => {
       );
 
       if (turnoCheck.rows.length > 0) {
-        // Turno già esistente, salta
         turniEsistentiSkip++;
         continue;
       }
 
-      // Determina tipo turno da preferenza
-      let tipoTurno = pref.tipo_preferenza; // OFF, APERTURA, CHIUSURA
+      let tipoTurno = pref.tipo_preferenza;
 
-      // **FIX: Gestisci OFF come turno esplicito**
+      // Gestione OFF
       if (tipoTurno === 'OFF') {
-        // Inserisci turno OFF con orari 00:00
         await query(
-          `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (user_id, settimana, giorno_settimana) DO NOTHING`,
-          [
-            pref.user_id,
-            settimana,
-            pref.giorno_settimana,
-            '00:00:00',
-            '00:00:00',
-            'OFF'
-          ]
+          [pref.user_id, settimana, pref.giorno_settimana, '00:00:00', '00:00:00', 'OFF', 0]
         );
         turniImportati++;
         console.log(`  ✓ ${pref.nome}: OFF giorno ${pref.giorno_settimana}`);
         continue;
       }
 
-      // Calcola orari in base a ore contratto
-      const oreGiorno = calcolaOreGiornaliere(pref.ore_settimanali);
-      const orari = generaOrariTurno(tipoTurno, oreGiorno);
+      // Calcola orari in base a ore contratto e giorno settimana
+      const orari = generaOrariTurno(tipoTurno, pref.ore_settimanali, pref.giorno_settimana);
 
-      // Inserisci turno
+      // Inserisci turno (il trigger calcola ore_effettive automaticamente)
       await query(
         `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -100,7 +139,7 @@ const importaPreferenze = async (req, res) => {
       );
 
       turniImportati++;
-      console.log(`  ✓ ${pref.nome}: ${tipoTurno} giorno ${pref.giorno_settimana}`);
+      console.log(`  ✓ ${pref.nome}: ${tipoTurno} giorno ${pref.giorno_settimana} (${orari.inizio}-${orari.fine})`);
     }
 
     res.json({

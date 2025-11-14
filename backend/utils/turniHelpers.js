@@ -38,7 +38,7 @@ const hapausaPranzo = (oreSettimanali) => {
  * INCLUDE PAUSA PRANZO di 30 minuti per contratti >= 30h
  */
 const generaOrariTurno = (tipoTurno, oreGiorno, oreSettimanali = 36, giornoSettimana = 0) => {
-  const conPausa = haususaPranzo(oreSettimanali);
+  const conPausa = hapausaPranzo(oreSettimanali);
   
   // MARTEDÌ (1) e GIOVEDÌ (3) hanno apertura alle 9:00
   const oraApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? '09:00' : '09:30';
