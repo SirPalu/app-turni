@@ -381,12 +381,14 @@ const DashboardAmministratore = () => {
 
             <ValidazioniPanel settimana={selectedWeek} onRefresh={refreshKey} />
 
-            <WeekTable 
-              key={refreshKey}
-              settimana={selectedWeek} 
-              editable={true}
-              onTurnoClick={handleTurnoClick}
-            />
+           <WeekTable 
+            key={refreshKey}
+            settimana={selectedWeek} 
+            editable={true}
+            onTurnoClick={handleTurnoClick}
+            onPresidioChange={() => setRefreshKey(prev => prev + 1)}
+            configPresidio={configPresidio}
+          />
           </div>
         )}
 
@@ -420,7 +422,7 @@ const DashboardAmministratore = () => {
               Questo potrebbe richiedere alcuni secondi.
             </p>
             <div className="generating-progress">
-              Analizzando 100 configurazioni possibili...
+              Analizzando 20000 configurazioni possibili...
             </div>
           </div>
         </div>

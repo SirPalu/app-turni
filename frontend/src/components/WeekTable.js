@@ -1,41 +1,70 @@
 // Componente Tabella Turni Settimanali
 import React, { useState, useEffect } from 'react';
-import { getTurniSettimana, getAllUsers } from '../api/axios';
-import './WeekTable.css';
+import { getTurniSettimana, getAllUsers, updatePresidioGiorno, getConfigPresidio } from '../api/axios';
 import GiornoDetailModal from './GiornoDetailModal';
+import './WeekTable.css';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
-const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
+const WeekTable = ({ 
+  settimana, 
+  editable = false, 
+  onTurnoClick, 
+  onPresidioChange,
+  configPresidio: externalConfig 
+}) => {
   const [turni, setTurni] = useState({});
   const [utenti, setUtenti] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedGiornoDetail, setSelectedGiornoDetail] = useState(null);
+  
+  // Config presidio
+  const [configPresidio, setConfigPresidio] = useState(
+    externalConfig || {
+      0: 'base', 1: 'base', 2: 'base', 3: 'base', 4: 'base',
+      5: 'rinforzato', 6: 'rinforzato'
+    }
+  );
+  const [loadingPresidio, setLoadingPresidio] = useState({});
+
+  // Sincronizza config presidio esterna
+  useEffect(() => {
+    if (externalConfig) {
+      setConfigPresidio(externalConfig);
+    }
+  }, [externalConfig]);
 
   useEffect(() => {
     loadTurni();
   }, [settimana]);
+
+  useEffect(() => {
+    if (editable && !externalConfig) {
+      loadConfigPresidioInternal();
+    }
+  }, [settimana, editable, externalConfig]);
 
   const loadTurni = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // SEMPRE carica i turni
+							  
       const turniResponse = await getTurniSettimana(settimana);
       const turniData = turniResponse.data.turni;
       setTurni(turniData);
-      // Log per debug
-    console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
       
-      // DIFFERENZIA: Admin vs Dipendente
+					  
+      console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
+      
+										 
       if (editable) {
-        // SE ADMIN/EDITABLE: carica SEMPRE tutti gli utenti
+															
         try {
           const usersResponse = await getAllUsers();
-          // Filtra manager
+						   
           const filteredUsers = usersResponse.data.users.filter(u => u.ruolo !== 'manager');
           setUtenti(filteredUsers);
         } catch (err) {
@@ -43,7 +72,7 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
           setError('Impossibile caricare la lista utenti');
         }
       } else {
-        // SE DIPENDENTE: estrai utenti solo dai turni
+													  
         const allTurni = Object.values(turniData).flat();
         if (allTurni.length > 0) {
           const uniqueUsers = [...new Map(
@@ -63,32 +92,85 @@ const WeekTable = ({ settimana, editable = false, onTurnoClick }) => {
     }
   };
 
-  // Trova turno per utente e giorno
+  const loadConfigPresidioInternal = async () => {
+    try {
+															   
+      const response = await getConfigPresidio(settimana);
+      setConfigPresidio(response.data.presidio);
+    } catch (err) {
+      console.error('Errore caricamento config presidio:', err);
+    }
+   
+  };
+
+  const handlePresidioChange = async (giorno, nuovoTipo) => {
+    if (!editable) return;
+
+    try {
+      setLoadingPresidio(prev => ({ ...prev, [giorno]: true }));
+      
+      // USA LA FUNZIONE API
+      await updatePresidioGiorno(settimana, giorno, nuovoTipo);
+
+      // Aggiorna stato locale
+      setConfigPresidio(prev => ({ ...prev, [giorno]: nuovoTipo }));
+      
+      console.log(`✅ Presidio giorno ${giorno} cambiato a: ${nuovoTipo}`);
+      
+      // Notifica parent
+      if (onPresidioChange) {
+        onPresidioChange();
+												
+							
+													   
+      }
+	  
+
+    } catch (err) {
+      console.error('Errore cambio presidio:', err);
+      console.error('Dettaglio:', err.response?.data);
+      alert(`Errore: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setLoadingPresidio(prev => ({ ...prev, [giorno]: false }));
+						   
+						 
+    }
+  };
+
+				 
+												  
+														   
+																								  
+			 
+															   
+   
+  
+									
   const getTurnoForUserDay = (userId, giorno) => {
     const turniGiorno = turni[giorno] || [];
     return turniGiorno.find(t => t.user_id === userId);
   };
 
-  // Formatta orario
+					
   const formatTime = (time) => {
     if (!time) return '';
     return time.substring(0, 5);
   };
 
-  // Determina colore in base al tipo turno
-const getTurnoClass = (tipo) => {
-  switch (tipo) {
-    case 'APERTURA': return 'turno-apertura';
-    case 'CENTRALE': return 'turno-centrale';
-    case 'CENTRALE-A': return 'turno-centrale-a';
-    case 'CENTRALE-B': return 'turno-centrale-b';
-    case 'CHIUSURA': return 'turno-chiusura';
-    case 'FERIE': return 'turno-ferie';
-    case 'MALATTIA': return 'turno-malattia';
-    case 'OFF': return 'turno-off';
-    default: return '';
-  }
-};
+										   
+  const getTurnoClass = (tipo) => {
+    switch (tipo) {
+      case 'APERTURA': return 'turno-apertura';
+      case 'CENTRALE': return 'turno-centrale';
+      case 'CENTRALE-A': return 'turno-centrale-a';
+      case 'CENTRALE-B': return 'turno-centrale-b';
+      case 'CHIUSURA': return 'turno-chiusura';
+      case 'FERIE': return 'turno-ferie';
+      case 'MALATTIA': return 'turno-malattia';
+      case 'OFF': return 'turno-off';
+      default: return '';
+    }
+  };
 
   if (loading) {
     return <div className="week-table-loading">Caricamento turni...</div>;
@@ -111,32 +193,58 @@ const getTurnoClass = (tipo) => {
       <div className="week-table-wrapper">
         <table className="week-table">
           <thead>
-  <tr>
-    <th className="dipendente-col">Dipendente</th>
-    {GIORNI.map((giorno, idx) => (
-      <th key={idx} className="giorno-col">
-        <div 
-          className="giorno-header"
-          style={{ cursor: 'pointer' }}
-          onClick={() => {
-            setSelectedGiornoDetail(idx);
-            setDetailModalOpen(true);
-          }}
-          title="Clicca per vedere il dettaglio del presidio"
-        >
-          <div className="giorno-nome">
-            {giorno} 
-            <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '5px' }}>🔍</span>
-          </div>
-          <div className="giorno-data">
-            {new Date(new Date(settimana).getTime() + idx * 86400000)
-              .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
-          </div>
-        </div>
-      </th>
-    ))}
-  </tr>
-</thead>
+            <tr>
+              <th className="dipendente-col">Dipendente</th>
+              {GIORNI.map((giorno, idx) => (
+                <th key={idx} className="giorno-col">
+                  <div 
+                    className="giorno-header"
+                    style={{ cursor: editable ? 'pointer' : 'default' }}
+                    onClick={() => {
+                      if (editable) {
+                        setSelectedGiornoDetail(idx);
+                        setDetailModalOpen(true);
+                      }
+                    }}
+                    title={editable ? "Clicca per vedere il dettaglio del presidio" : ""}
+                  >
+                    <div className="giorno-nome">
+                      {giorno} 
+                      {editable && (
+                        <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '5px' }}>🔍</span>
+                      )}
+                    </div>
+                    <div className="giorno-data">
+                      {new Date(new Date(settimana).getTime() + idx * 86400000)
+                        .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+                    </div>
+
+															  
+                    {editable && (
+                      <div className="presidio-selector" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          className={`presidio-select ${loadingPresidio[idx] ? 'changing' : ''}`}
+                          value={configPresidio[idx] || 'base'}
+                          onChange={(e) => handlePresidioChange(idx, e.target.value)}
+                          disabled={loadingPresidio[idx]}
+                        >
+                          <option value="base">📊 Base</option>
+                          <option value="rinforzato">💪 Rinforzato</option>
+                        </select>
+                      </div>
+                    )}
+
+														   
+                    {!editable && (
+                      <div className={`presidio-badge ${configPresidio[idx] || 'base'}`}>
+                        {configPresidio[idx] === 'rinforzato' ? '💪 Rinf.' : '📊 Base'}
+                      </div>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {utenti.length === 0 ? (
               <tr>
@@ -159,33 +267,33 @@ const getTurnoClass = (tipo) => {
                         className={`turno-cell ${turno ? getTurnoClass(turno.tipo_turno) : ''} ${editable ? 'editable' : ''}`}
                         onClick={() => editable && onTurnoClick && onTurnoClick(utente.id, giorno, turno)}
                       >
-                    {turno ? (
-                      turno.tipo_turno === 'OFF' ? (
-                    <div className="turno-content">
-      <div className="turno-tipo" style={{ backgroundColor: '#6c757d', color: 'white' }}>
-        OFF
-      </div>
-    </div>
-  ) : (
-    <div className="turno-content">
-      <div className="turno-orario">
-        {formatTime(turno.ora_inizio)} - {formatTime(turno.ora_fine)}
-      </div>
-      <div className="turno-tipo">
-        {turno.tipo_turno}
-      </div>
-      {turno.ore_effettive && (
-        <div className="turno-ore">
-          {turno.ore_effettive}h
-        </div>
-      )}
-    </div>
-  )
-) : (
-  <div className="turno-empty">
-    {editable ? '+ Aggiungi' : '-'}
-  </div>
-)}
+                        {turno ? (
+                          turno.tipo_turno === 'OFF' ? (
+                            <div className="turno-content">
+                              <div className="turno-tipo" style={{ backgroundColor: '#6c757d', color: 'white' }}>
+                                OFF
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="turno-content">
+                              <div className="turno-orario">
+                                {formatTime(turno.ora_inizio)} - {formatTime(turno.ora_fine)}
+                              </div>
+                              <div className="turno-tipo">
+                                {turno.tipo_turno}
+                              </div>
+                              {turno.ore_effettive && (
+                                <div className="turno-ore">
+                                  {turno.ore_effettive}h
+                                </div>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <div className="turno-empty">
+                            {editable ? '+ Aggiungi' : '-'}
+                          </div>
+                        )}
                       </td>
                     );
                   })}
@@ -205,7 +313,8 @@ const getTurnoClass = (tipo) => {
           <span className="legend-item turno-ferie">Ferie</span>
         </div>
       )}
-       {/* Modal Dettaglio Giorno */}
+
+									
       <GiornoDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
