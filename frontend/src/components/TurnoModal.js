@@ -1,4 +1,4 @@
-// Modal per inserimento/modifica turno - CON ORARI MODULARI E OFF
+// Modal per inserimento/modifica turno - FIXED orari martedì/giovedì
 import React, { useState, useEffect } from 'react';
 import { createOrUpdateTurno, deleteTurno, getUserById } from '../api/axios';
 import './TurnoModal.css';
@@ -15,19 +15,35 @@ const calcolaOreGiornaliere = (oreSettimanali) => {
   return 5;
 };
 
-// Orari predefiniti modulari CON PAUSA PRANZO
+// ✅ ORARI PREDEFINITI MODULARI CON PAUSA PRANZO E CORREZIONE MAR/GIO
 const getOrariPredefiniti = (tipoTurno, oreGiorno, oreSettimanali = 36, giornoSettimana = 0) => {
   const conPausa = oreSettimanali >= 30;
   
-  // MARTEDÌ (1) e GIOVEDÌ (3) hanno apertura alle 9:00
+  // ✅ MARTEDÌ (1) e GIOVEDÌ (3) hanno apertura alle 9:00
   const oraApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? '09:00' : '09:30';
+  
+  // ✅ Se apertura anticipata (9:00), anche la fine è anticipata di 30 min
+  const offsetApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? -0.5 : 0;
   
   const orari = {
     APERTURA: {
-      5: { inizio: oraApertura, fine: conPausa ? '15:00' : '14:30' },
-      6: { inizio: oraApertura, fine: conPausa ? '16:00' : '15:30' },
-      7: { inizio: oraApertura, fine: conPausa ? '17:00' : '16:30' },
-      8: { inizio: oraApertura, fine: conPausa ? '18:00' : '17:30' }
+      // ✅ Tutti i finali scalati di 30 min per mar/gio
+      5: { 
+        inizio: oraApertura, 
+        fine: aggiungiOre(conPausa ? '15:00' : '14:30', offsetApertura)
+      },
+      6: { 
+        inizio: oraApertura, 
+        fine: aggiungiOre(conPausa ? '16:00' : '15:30', offsetApertura)
+      },
+      7: { 
+        inizio: oraApertura, 
+        fine: aggiungiOre(conPausa ? '17:00' : '16:30', offsetApertura)
+      },
+      8: { 
+        inizio: oraApertura, 
+        fine: aggiungiOre(conPausa ? '18:00' : '17:30', offsetApertura)
+      }
     },
     'CENTRALE-A': {
       5: { inizio: '12:00', fine: conPausa ? '17:30' : '17:00' },
@@ -59,6 +75,19 @@ const getOrariPredefiniti = (tipoTurno, oreGiorno, oreSettimanali = 36, giornoSe
   };
 
   return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: oraApertura, fine: '17:30' };
+};
+
+// ✅ HELPER: Aggiungi/sottrai ore da un orario HH:MM
+const aggiungiOre = (orario, offsetOre) => {
+  if (offsetOre === 0) return orario;
+  
+  const [ore, minuti] = orario.split(':').map(Number);
+  const minutiTotali = ore * 60 + minuti + (offsetOre * 60);
+  
+  const nuoveOre = Math.floor(minutiTotali / 60);
+  const nuoviMinuti = minutiTotali % 60;
+  
+  return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
 };
 
 // Calcola ore per FERIE/MALATTIA in base a contratto
@@ -105,7 +134,7 @@ const TurnoModal = ({
       setOraFine(orari.fine);
     }
     setError(null);
-  }, [turnoEsistente, isOpen, oreSettimanali]);
+  }, [turnoEsistente, isOpen, oreSettimanali, giorno]);
 
   const caricaDatiUtente = async () => {
     try {
@@ -126,28 +155,28 @@ const TurnoModal = ({
   };
 
   const calcolaOre = () => {
-  // FERIE e MALATTIA usano calcolo proporzionato
-  if (tipoTurno === 'FERIE' || tipoTurno === 'MALATTIA') {
-    return calcolaOreFerieMalattia(oreSettimanali);
-  }
-  
-  if (!oraInizio || !oraFine) return 0;
-  
-  const [hInizio, mInizio] = oraInizio.split(':').map(Number);
-  const [hFine, mFine] = oraFine.split(':').map(Number);
-  
-  const minInizio = hInizio * 60 + mInizio;
-  const minFine = hFine * 60 + mFine;
-  
-  let oreTotali = (minFine - minInizio) / 60;
-  
-  // Sottrai pausa pranzo se >= 30h contratto
-  if (oreSettimanali >= 30 && !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno)) {
-    oreTotali -= 0.5; // -30 minuti
-  }
-  
-  return oreTotali.toFixed(1);
-};
+    // FERIE e MALATTIA usano calcolo proporzionato
+    if (tipoTurno === 'FERIE' || tipoTurno === 'MALATTIA') {
+      return calcolaOreFerieMalattia(oreSettimanali);
+    }
+    
+    if (!oraInizio || !oraFine) return 0;
+    
+    const [hInizio, mInizio] = oraInizio.split(':').map(Number);
+    const [hFine, mFine] = oraFine.split(':').map(Number);
+    
+    const minInizio = hInizio * 60 + mInizio;
+    const minFine = hFine * 60 + mFine;
+    
+    let oreTotali = (minFine - minInizio) / 60;
+    
+    // Sottrai pausa pranzo se >= 30h contratto
+    if (oreSettimanali >= 30 && !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno)) {
+      oreTotali -= 0.5; // -30 minuti
+    }
+    
+    return oreTotali.toFixed(1);
+  };
 
   const handleSave = async () => {
     try {
@@ -199,6 +228,7 @@ const TurnoModal = ({
 
   const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
   const mostraOrari = !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno);
+  const nomeGiorno = GIORNI[giorno];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -218,8 +248,13 @@ const TurnoModal = ({
             <div className="form-group">
               <label className="form-label">Giorno</label>
               <div className="form-value">
-                {GIORNI[giorno]} - {new Date(new Date(settimana).getTime() + giorno * 86400000)
+                {nomeGiorno} - {new Date(new Date(settimana).getTime() + giorno * 86400000)
                   .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {(giorno === 1 || giorno === 3) && (
+                  <span style={{ marginLeft: '10px', color: '#007bff', fontWeight: 'bold' }}>
+                    ⏰ Apertura anticipata (9:00)
+                  </span>
+                )}
               </div>
             </div>
 
@@ -227,6 +262,7 @@ const TurnoModal = ({
               <label className="form-label">Ore Contratto / Ore Giornaliere</label>
               <div className="form-value">
                 {oreSettimanali}h/sett → {oreGiorno}h/giorno
+                {oreSettimanali >= 30 && ' (con pausa pranzo 30min)'}
               </div>
             </div>
           </div>

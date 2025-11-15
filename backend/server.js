@@ -9,14 +9,18 @@ const { testConnection } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const turniRoutes = require('./routes/turniRoutes');
+const validazioniRoutes = require('./routes/validazioniRoutes');
+const algoritmoRoutes = require('./routes/algoritmoRoutes');
+const presidioRoutes = require('./routes/presidioRoutes'); // ✅ AGGIUNTO
+const storicoRoutes = require('./routes/storicoRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ===== MIDDLEWARE =====
-app.use(cors()); // Permette chiamate da frontend
-app.use(express.json()); // Parse JSON body
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded body
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Log richieste (in development)
 if (process.env.NODE_ENV === 'development') {
@@ -62,13 +66,14 @@ app.get('/api', (req, res) => {
         'DELETE /api/turni/:id - Elimina turno (Admin)',
         'GET    /api/turni/preferenze/:userId/settimana/:data - Preferenze',
         'POST   /api/turni/preferenze - Salva preferenze'
+      ],
+      presidio: [
+        'GET /api/presidio/config/:settimana - Config presidio settimana',
+        'PUT /api/presidio/config/:settimana/giorno/:giorno - Aggiorna presidio giorno'
       ]
     }
   });
 });
-
-const validazioniRoutes = require('./routes/validazioniRoutes');
-const algoritmoRoutes = require('./routes/algoritmoRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -76,6 +81,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/turni', turniRoutes);
 app.use('/api/validazioni', validazioniRoutes);
 app.use('/api/algoritmo', algoritmoRoutes);
+app.use('/api/presidio', presidioRoutes); // ✅ AGGIUNTO - ROUTE PRESIDIO
+app.use('/api/storico', storicoRoutes);
 
 // ===== ERROR HANDLERS =====
 
@@ -102,12 +109,15 @@ const startServer = async () => {
     // Test connessione database
     console.log('🔍 Test connessione database...');
     const dbConnected = await testConnection();
-        if (!dbConnected) {
+    if (!dbConnected) {
       console.error('❌ Impossibile connettersi al database. Server non avviato.');
       process.exit(1);
     }
+    
     // ✅ Avvia scheduler archiviazione
+    const { avviaScheduler } = require('./scheduler/archiviazione');
     avviaScheduler();
+    
     // Avvia server
     app.listen(PORT, () => {
       console.log('');
@@ -139,14 +149,5 @@ process.on('SIGINT', () => {
   console.log('⚠️  SIGINT ricevuto. Chiusura server...');
   process.exit(0);
 });
-const presidioRoutes = require('./routes/presidioRoutes');
-app.use('/api/presidio', presidioRoutes);
-
-// Import scheduler e route storico
-const { avviaScheduler } = require('./scheduler/archiviazione');
-const storicoRoutes = require('./routes/storicoRoutes');
-
-// Mount route storico
-app.use('/api/storico', storicoRoutes);
 
 startServer();

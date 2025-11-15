@@ -1,9 +1,8 @@
-// Controller per algoritmo auto-pianificazione OTTIMIZZATO
+// Controller per algoritmo auto-pianificazione - FIXED orari mar/gio
 const { query } = require('../config/database');
 
 /**
  * GENERA PIANIFICAZIONE AUTOMATICA CON ALGORITMO RANDOM SEARCH
- * POST /api/algoritmo/genera
  */
 const generaPianificazione = async (req, res) => {
   try {
@@ -15,17 +14,14 @@ const generaPianificazione = async (req, res) => {
 
     console.log(`🤖 Avvio algoritmo auto-pianificazione per settimana ${settimana}`);
 
-    // 1. Carica dati
     const dipendenti = await caricaDipendenti();
     const turniEsistenti = await caricaTurniEsistenti(settimana);
     const configPresidio = await caricaConfigPresidio(settimana);
 
-    // 2. Calcola slot da riempire
     const slotDaRiempire = calcolaSlotVuoti(dipendenti, turniEsistenti);
 
     console.log(`📊 ${slotDaRiempire.length} slot da riempire su ${dipendenti.length * 7} totali`);
 
-    // 3. Random Search con ottimizzazione
     const risultato = await eseguiRandomSearch(
       slotDaRiempire,
       dipendenti,
@@ -60,9 +56,6 @@ const generaPianificazione = async (req, res) => {
   }
 };
 
-/**
- * CARICA DIPENDENTI (escluso manager)
- */
 const caricaDipendenti = async () => {
   const result = await query(
     `SELECT id, nome, ore_settimanali, ha_chiavi 
@@ -73,9 +66,6 @@ const caricaDipendenti = async () => {
   return result.rows;
 };
 
-/**
- * CARICA TURNI ESISTENTI (locked, non modificabili)
- */
 const caricaTurniEsistenti = async (settimana) => {
   const result = await query(
     `SELECT * FROM turni WHERE settimana = $1`,
@@ -84,9 +74,6 @@ const caricaTurniEsistenti = async (settimana) => {
   return result.rows;
 };
 
-/**
- * CARICA CONFIG PRESIDIO
- */
 const caricaConfigPresidio = async (settimana) => {
   const result = await query(
     `SELECT * FROM config_settimane WHERE settimana = $1`,
@@ -112,9 +99,6 @@ const caricaConfigPresidio = async (settimana) => {
   };
 };
 
-/**
- * CALCOLA SLOT VUOTI DA RIEMPIRE
- */
 const calcolaSlotVuoti = (dipendenti, turniEsistenti) => {
   const slots = [];
 
@@ -123,14 +107,8 @@ const calcolaSlotVuoti = (dipendenti, turniEsistenti) => {
     
     const giorniOccupati = {};
     const conteggioTipi = {
-      OFF: 0,
-      APERTURA: 0,
-      CHIUSURA: 0,
-      CENTRALE: 0,
-      'CENTRALE-A': 0,
-      'CENTRALE-B': 0,
-      FERIE: 0,
-      MALATTIA: 0
+      OFF: 0, APERTURA: 0, CHIUSURA: 0, CENTRALE: 0,
+      'CENTRALE-A': 0, 'CENTRALE-B': 0, FERIE: 0, MALATTIA: 0
     };
 
     turniDip.forEach(t => {
@@ -164,11 +142,8 @@ const calcolaSlotVuoti = (dipendenti, turniEsistenti) => {
   return slots;
 };
 
-/**
- * RANDOM SEARCH: Esegue N tentativi e salva il migliore
- */
 const eseguiRandomSearch = async (slotDaRiempire, dipendenti, turniEsistenti, configPresidio, settimana) => {
-  const MAX_TENTATIVI = 20000;
+  const MAX_TENTATIVI = 13000;
   let bestSolution = null;
   let bestScore = -Infinity;
   let tentativiValidi = 0;
@@ -210,7 +185,6 @@ const eseguiRandomSearch = async (slotDaRiempire, dipendenti, turniEsistenti, co
     };
   }
 
-  // FASE 2: Ottimizzazione locale
   console.log('🎯 Avvio ottimizzazione locale sulla miglior soluzione trovata...');
   const soluzioneOttimizzata = await ottimizzazioneLocale(
     bestSolution.turni,
@@ -237,9 +211,6 @@ const eseguiRandomSearch = async (slotDaRiempire, dipendenti, turniEsistenti, co
   };
 };
 
-/**
- * OTTIMIZZAZIONE LOCALE: Prova swap tra dipendenti
- */
 const ottimizzazioneLocale = async (pianificazione, dipendenti, turniEsistenti, configPresidio, settimana) => {
   console.log('🔧 Inizio ottimizzazione locale...');
   
@@ -292,9 +263,6 @@ const ottimizzazioneLocale = async (pianificazione, dipendenti, turniEsistenti, 
   };
 };
 
-/**
- * GENERA PIANIFICAZIONE RANDOM
- */
 const generaPianificazioneRandom = (slotDaRiempire, dipendenti) => {
   const pianificazione = [];
   const slotPerDipendente = {};
@@ -337,9 +305,6 @@ const generaPianificazioneRandom = (slotDaRiempire, dipendenti) => {
   return pianificazione;
 };
 
-/**
- * VALIDA VINCOLI HARD
- */
 const validaVincoli = (pianificazione, dipendenti) => {
   const turniPerDipendente = {};
   
@@ -366,9 +331,6 @@ const validaVincoli = (pianificazione, dipendenti) => {
   return true;
 };
 
-/**
- * CALCOLA SCORE DELLA PIANIFICAZIONE
- */
 const calcolaScore = async (pianificazione, turniEsistenti, configPresidio, settimana) => {
   const tuttiTurni = [...turniEsistenti, ...pianificazione];
   let giorniVerdi = 0;
@@ -399,9 +361,6 @@ const calcolaScore = async (pianificazione, turniEsistenti, configPresidio, sett
   };
 };
 
-/**
- * VERIFICA PRESIDIO GIORNO
- */
 const verificaPresidioGiorno = async (turniGiorno, tipoPresidio, giorno) => {
   if (turniGiorno.length === 0) return false;
 
@@ -430,9 +389,6 @@ const verificaPresidioGiorno = async (turniGiorno, tipoPresidio, giorno) => {
   }
 };
 
-/**
- * CALCOLA COPERTURA FASCE ORARIE
- */
 const calcolaCoperturaFasce = (turniGiorno) => {
   const copertura = {};
   const oreCritiche = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '18:00', '19:00', '20:00', '21:00'];
@@ -463,19 +419,29 @@ const calcolaCoperturaFasce = (turniGiorno) => {
 };
 
 /**
- * GET ORARIO TURNO
+ * ✅ GET ORARIO TURNO - FIXED per mar/gio
  */
 const getOrarioTurno = (tipoTurno, oreSettimanali, giorno) => {
   const conPausa = oreSettimanali >= 30;
   const oraApertura = (giorno === 1 || giorno === 3) ? '09:00' : '09:30';
+  const offsetApertura = (giorno === 1 || giorno === 3) ? -0.5 : 0;
   const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
+
+  const aggiungiOre = (orario, offset) => {
+    if (offset === 0) return orario;
+    const [ore, minuti] = orario.split(':').map(Number);
+    const minutiTotali = ore * 60 + minuti + (offset * 60);
+    const nuoveOre = Math.floor(minutiTotali / 60);
+    const nuoviMinuti = minutiTotali % 60;
+    return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
+  };
 
   const orari = {
     APERTURA: {
-      5: { inizio: oraApertura, fine: conPausa ? '15:00' : '14:30' },
-      6: { inizio: oraApertura, fine: conPausa ? '16:00' : '15:30' },
-      7: { inizio: oraApertura, fine: conPausa ? '17:00' : '16:30' },
-      8: { inizio: oraApertura, fine: conPausa ? '18:00' : '17:30' }
+      5: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '15:00' : '14:30', offsetApertura) },
+      6: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '16:00' : '15:30', offsetApertura) },
+      7: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '17:00' : '16:30', offsetApertura) },
+      8: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '18:00' : '17:30', offsetApertura) }
     },
     'CENTRALE': {
       5: { inizio: '13:00', fine: conPausa ? '18:30' : '18:00' },
@@ -514,9 +480,6 @@ const calcolaOreGiornaliere = (oreSettimanali) => {
   return 5;
 };
 
-/**
- * SALVA PIANIFICAZIONE NEL DATABASE
- */
 const salvaPianificazione = async (turni, settimana) => {
   let salvati = 0;
 
@@ -549,9 +512,6 @@ const salvaPianificazione = async (turni, settimana) => {
   return salvati;
 };
 
-/**
- * SHUFFLE ARRAY (Fisher-Yates)
- */
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

@@ -1,4 +1,4 @@
-// Dashboard Amministratore - Completa con tutte le funzionalità
+// Dashboard Amministratore - FIXED per cambio presidio
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -7,8 +7,7 @@ import {
   generaPianificazioneAutomatica,
   importaPreferenze,
   resetSettimana,
-  getConfigPresidio,
-  updatePresidioGiorno
+  getConfigPresidio
 } from '../api/axios';
 import WeekTable from '../components/WeekTable';
 import TurnoModal from '../components/TurnoModal';
@@ -89,6 +88,7 @@ const DashboardAmministratore = () => {
   const loadConfigPresidio = async () => {
     try {
       const response = await getConfigPresidio(selectedWeek);
+      console.log('✅ Config presidio caricato:', response.data.presidio);
       setConfigPresidio(response.data.presidio);
     } catch (err) {
       console.error('Errore caricamento config presidio:', err);
@@ -122,6 +122,22 @@ const DashboardAmministratore = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  // ✅ CALLBACK PER AGGIORNARE CONFIG PRESIDIO DAL CHILD
+  const handlePresidioUpdate = async (giorno, nuovoTipo) => {
+    console.log(`🔄 Parent ricevuto cambio presidio: giorno ${giorno} -> ${nuovoTipo}`);
+    
+    // Aggiorna lo stato locale PRIMA
+    const nuovoConfig = { ...configPresidio, [giorno]: nuovoTipo };
+    console.log('📊 Nuovo config presidio:', nuovoConfig);
+    setConfigPresidio(nuovoConfig);
+    
+    // Piccolo delay per permettere il render, poi forza refresh completo
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+      console.log('🔄 Refresh forzato per ricalcolo validazioni');
+    }, 100);
+  };
+
   const handleImportaPreferenze = async () => {
     if (!window.confirm('Importare le preferenze dei dipendenti nella tabella turni?\n\nLe celle vuote verranno riempite con le preferenze indicate.')) {
       return;
@@ -153,7 +169,6 @@ const DashboardAmministratore = () => {
       
       const { turniGenerati, giorniVerdi, tentativiEffettuati } = response.data;
       
-      // Messaggio di successo con dettagli
       const messaggioSuccesso = `✅ Pianificazione generata!\n\n` +
         `📊 ${turniGenerati} turni creati\n` +
         `🟢 ${giorniVerdi}/7 giorni con presidio valido\n` +
@@ -161,7 +176,6 @@ const DashboardAmministratore = () => {
       
       alert(messaggioSuccesso);
       
-      // Refresh della tabella
       setRefreshKey(prev => prev + 1);
       
     } catch (err) {
@@ -185,16 +199,6 @@ const DashboardAmministratore = () => {
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       alert('❌ Errore reset: ' + err.message);
-    }
-  };
-
-  const handleChangePresidio = async (giorno, nuovoTipo) => {
-    try {
-      await updatePresidioGiorno(selectedWeek, giorno, nuovoTipo);
-      setConfigPresidio(prev => ({ ...prev, [giorno]: nuovoTipo }));
-      setRefreshKey(prev => prev + 1);
-    } catch (err) {
-      console.error('Errore cambio presidio:', err);
     }
   };
 
@@ -379,16 +383,22 @@ const DashboardAmministratore = () => {
               </p>
             </div>
 
-            <ValidazioniPanel settimana={selectedWeek} onRefresh={refreshKey} />
+            {/* ✅ PASSA CONFIG PRESIDIO ALLE VALIDAZIONI */}
+            <ValidazioniPanel 
+              settimana={selectedWeek} 
+              onRefresh={refreshKey}
+              configPresidio={configPresidio}
+            />
 
-           <WeekTable 
-            key={refreshKey}
-            settimana={selectedWeek} 
-            editable={true}
-            onTurnoClick={handleTurnoClick}
-            onPresidioChange={() => setRefreshKey(prev => prev + 1)}
-            configPresidio={configPresidio}
-          />
+            {/* ✅ PASSA LA CALLBACK PER AGGIORNARE IL PRESIDIO */}
+            <WeekTable 
+              key={`${refreshKey}-${JSON.stringify(configPresidio)}`}
+              settimana={selectedWeek} 
+              editable={true}
+              onTurnoClick={handleTurnoClick}
+              onPresidioChange={handlePresidioUpdate}
+              configPresidio={configPresidio}
+            />
           </div>
         )}
 

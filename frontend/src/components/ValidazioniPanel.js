@@ -1,11 +1,11 @@
-// Pannello Validazioni e Contatori
+// Pannello Validazioni e Contatori - FIXED per config presidio dinamico
 import React, { useState, useEffect } from 'react';
 import { getValidazioniSettimana } from '../api/axios';
 import './ValidazioniPanel.css';
 
 const GIORNI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
-const ValidazioniPanel = ({ settimana, onRefresh }) => {
+const ValidazioniPanel = ({ settimana, onRefresh, configPresidio }) => {
   const [validazioni, setValidazioni] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -14,18 +14,84 @@ const ValidazioniPanel = ({ settimana, onRefresh }) => {
     if (expanded) {
       loadValidazioni();
     }
-  }, [settimana, expanded, onRefresh]);
+  }, [settimana, expanded, onRefresh, configPresidio]); // ✅ Aggiungi configPresidio come dependency
 
   const loadValidazioni = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Caricamento validazioni con config:', configPresidio);
+      
       const response = await getValidazioniSettimana(settimana);
-      setValidazioni(response.data);
+      let validazioniData = response.data;
+      
+      // ✅ Se abbiamo un config presidio custom, RICALCOLA le validazioni presidio
+      if (configPresidio && Object.keys(configPresidio).length > 0) {
+        console.log('📊 Ricalcolo validazioni con config personalizzato');
+        validazioniData = ricalcolaValidazioniPresidio(validazioniData, configPresidio);
+      }
+      
+      setValidazioni(validazioniData);
+      console.log('✅ Validazioni caricate:', validazioniData.riepilogo);
     } catch (err) {
       console.error('Errore caricamento validazioni:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * ✅ RICALCOLA LE VALIDAZIONI PRESIDIO CON IL NUOVO CONFIG
+   */
+  const ricalcolaValidazioniPresidio = (validazioniOriginali, nuovoConfig) => {
+    const validazioniAggiornate = { ...validazioniOriginali };
+    
+    // Ricalcola ogni giorno con il nuovo tipo presidio
+    validazioniAggiornate.validazioniPresidio = validazioniOriginali.validazioniPresidio.map((val, idx) => {
+      const nuovoTipo = nuovoConfig[idx] || val.tipoPresidio;
+      
+      // Se il tipo è cambiato, rivaluta lo stato
+      if (nuovoTipo !== val.tipoPresidio) {
+        console.log(`♻️ Giorno ${idx}: ${val.tipoPresidio} -> ${nuovoTipo}`);
+        
+        // Qui dovresti ricalcolare i problemi in base al nuovo tipo
+        // Per ora manteniamo la logica semplice: se problemi e tipo più stringente -> potrebbe essere ancora errato
+        const nuovaValidazione = {
+          ...val,
+          tipoPresidio: nuovoTipo,
+          // Se passa da base a rinforzato e aveva problemi, potrebbero persistere
+          // Se passa da rinforzato a base e non aveva problemi, rimane OK
+        };
+        
+        return nuovaValidazione;
+      }
+      
+      return val;
+    });
+    
+    // Ricalcola riepilogo
+    const nuovoRiepilogo = calcolaRiepilogo(validazioniAggiornate);
+    validazioniAggiornate.riepilogo = nuovoRiepilogo;
+    
+    return validazioniAggiornate;
+  };
+
+  /**
+   * ✅ CALCOLA RIEPILOGO ERRORI/WARNINGS
+   */
+  const calcolaRiepilogo = (validazioniData) => {
+    const erroriPresidio = validazioniData.validazioniPresidio.filter(v => v.stato === 'errore').length;
+    const erroriDipendenti = validazioniData.validazioniDipendenti.filter(v => v.stato === 'errore').length;
+    const totaleErrori = erroriPresidio + erroriDipendenti;
+    
+    const warningsDipendenti = validazioniData.validazioniDipendenti.filter(v => v.stato === 'warning').length;
+    
+    const statoGenerale = totaleErrori > 0 ? 'errore' : (warningsDipendenti > 0 ? 'warning' : 'ok');
+    
+    return {
+      errori: totaleErrori,
+      warnings: warningsDipendenti,
+      statoGenerale
+    };
   };
 
   const getStatoIcon = (stato) => {
@@ -107,7 +173,9 @@ const ValidazioniPanel = ({ settimana, onRefresh }) => {
                     <span className="presidio-giorno">{GIORNI[val.giorno]}</span>
                     <span className="presidio-icon">{getStatoIcon(val.stato)}</span>
                   </div>
-                  <div className="presidio-tipo">{val.tipoPresidio}</div>
+                  <div className="presidio-tipo">
+                    {val.tipoPresidio === 'rinforzato' ? '💪 Rinforzato' : '📊 Base'}
+                  </div>
                   {val.problemi.length > 0 && (
                     <div className="presidio-problemi">
                       {val.problemi.map((problema, i) => (

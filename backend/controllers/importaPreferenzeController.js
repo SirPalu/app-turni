@@ -1,4 +1,4 @@
-// Controller per importare preferenze in turni
+// Controller per importare preferenze in turni - FIXED orari mar/gio
 const { query } = require('../config/database');
 
 /**
@@ -13,19 +13,30 @@ const calcolaOreGiornaliere = (oreSettimanali) => {
 };
 
 /**
- * Genera orari turno modulari con pausa pranzo
+ * ✅ Genera orari turno modulari con pausa pranzo E correzione mar/gio
  */
 const generaOrariTurno = (tipoTurno, oreSettimanali, giornoSettimana) => {
   const conPausa = oreSettimanali >= 30;
   const oraApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? '09:00' : '09:30';
+  const offsetApertura = (giornoSettimana === 1 || giornoSettimana === 3) ? -0.5 : 0; // -30min per mar/gio
   const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
+
+  // Helper per aggiungere/sottrarre ore
+  const aggiungiOre = (orario, offset) => {
+    if (offset === 0) return orario;
+    const [ore, minuti] = orario.split(':').map(Number);
+    const minutiTotali = ore * 60 + minuti + (offset * 60);
+    const nuoveOre = Math.floor(minutiTotali / 60);
+    const nuoviMinuti = minutiTotali % 60;
+    return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
+  };
 
   const orari = {
     APERTURA: {
-      5: { inizio: oraApertura, fine: conPausa ? '15:00' : '14:30' },
-      6: { inizio: oraApertura, fine: conPausa ? '16:00' : '15:30' },
-      7: { inizio: oraApertura, fine: conPausa ? '17:00' : '16:30' },
-      8: { inizio: oraApertura, fine: conPausa ? '18:00' : '17:30' }
+      5: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '15:00' : '14:30', offsetApertura) },
+      6: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '16:00' : '15:30', offsetApertura) },
+      7: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '17:00' : '16:30', offsetApertura) },
+      8: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '18:00' : '17:30', offsetApertura) }
     },
     CENTRALE: {
       5: { inizio: '13:00', fine: conPausa ? '18:30' : '18:00' },
@@ -120,7 +131,7 @@ const importaPreferenze = async (req, res) => {
         continue;
       }
 
-      // Calcola orari in base a ore contratto e giorno settimana
+      // ✅ Calcola orari in base a ore contratto E giorno settimana (mar/gio)
       const orari = generaOrariTurno(tipoTurno, pref.ore_settimanali, pref.giorno_settimana);
 
       // Inserisci turno (il trigger calcola ore_effettive automaticamente)

@@ -1,40 +1,37 @@
-// Controller per validazioni e contatori
+// Controller per validazioni e contatori - FIXED per config presidio
 const { query } = require('../config/database');
 
 /**
  * CALCOLA CONTATORI DIPENDENTE
- * Ritorna statistiche per un dipendente in una settimana
  */
 const calcolaContatoriDipendente = async (userId, settimana) => {
   const result = await query(
-  `SELECT * FROM turni WHERE user_id = $1 AND settimana = $2`,
-  [userId, settimana]
-);
+    `SELECT * FROM turni WHERE user_id = $1 AND settimana = $2`,
+    [userId, settimana]
+  );
 
   const turni = result.rows;
   
   let ore_lavorate = 0;
-  let giorni_off = 0; // Conta gli OFF espliciti
+  let giorni_off = 0;
   let chiusure = 0;
   let aperture = 0;
-  let pfes = 0; // Sabati
-  let fes = 0;  // Domeniche
+  let pfes = 0;
+  let fes = 0;
 
   turni.forEach(turno => {
-  if (turno.tipo_turno === 'OFF') {
-    giorni_off++;
-    return; // Non conta ore per OFF
-  }
+    if (turno.tipo_turno === 'OFF') {
+      giorni_off++;
+      return;
+    }
 
-  // Le ore_effettive sono già calcolate correttamente dal trigger DB
-  if (turno.ore_effettive) {
-    ore_lavorate += parseFloat(turno.ore_effettive);
-  }
+    if (turno.ore_effettive) {
+      ore_lavorate += parseFloat(turno.ore_effettive);
+    }
     
     if (turno.tipo_turno === 'CHIUSURA') chiusure++;
     if (turno.tipo_turno === 'APERTURA') aperture++;
     
-    // Sabato = giorno 5, Domenica = giorno 6
     if (turno.giorno_settimana === 5) pfes++;
     if (turno.giorno_settimana === 6) fes++;
   });
@@ -52,7 +49,6 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
 
 /**
  * VALIDA DIPENDENTE
- * Verifica vincoli per un singolo dipendente
  */
 const validaDipendente = async (userId, settimana) => {
   const userResult = await query(
@@ -92,11 +88,6 @@ const validaDipendente = async (userId, settimana) => {
     warnings.push(`Ore lavorate: ${ore_effettive}h (previste: ${ore_previste}h, diff: ${differenza.toFixed(1)}h)`);
   }
 
-  // **FIX VALIDAZIONE 4: Controlla chiavi PER GIORNO, non per utente**
-  // Questa validazione ora viene fatta solo nel presidio giornaliero
-  // Qui NON mettiamo più errori per singolo dipendente senza chiavi
-  // perché un collega potrebbe averle
-
   return {
     userId,
     nome: user.nome,
@@ -108,9 +99,7 @@ const validaDipendente = async (userId, settimana) => {
 };
 
 /**
- * VALIDA PRESIDIO GIORNALIERO
- * Verifica che ogni ora del giorno abbia abbastanza persone
- * E che ci sia ALMENO UNA persona con chiavi per aperture/chiusure
+ * ✅ VALIDA PRESIDIO GIORNALIERO CON CONFIG DINAMICO
  */
 const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') => {
   const turniResult = await query(
@@ -125,11 +114,10 @@ const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') =>
   const turni = turniResult.rows;
   const problemi = [];
 
-  // **FIX CHIAVI: Verifica che almeno UNA persona con chiavi copra apertura E chiusura**
+  // Verifica chiavi
   const turniApertura = turni.filter(t => t.tipo_turno === 'APERTURA');
   const turniChiusura = turni.filter(t => t.tipo_turno === 'CHIUSURA');
   
-  // Controlla se c'è almeno una persona con chiavi in APERTURA (se ci sono aperture)
   if (turniApertura.length > 0) {
     const personaConChiaviApertura = turniApertura.some(t => t.ha_chiavi);
     if (!personaConChiaviApertura) {
@@ -137,7 +125,6 @@ const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') =>
     }
   }
   
-  // Controlla se c'è almeno una persona con chiavi in CHIUSURA (se ci sono chiusure)
   if (turniChiusura.length > 0) {
     const personaConChiaviChiusura = turniChiusura.some(t => t.ha_chiavi);
     if (!personaConChiaviChiusura) {
@@ -145,61 +132,30 @@ const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') =>
     }
   }
 
-  // Definisci requisiti presidio
-  const requisiti = tipoPresidio === 'rinforzato' ? {
-    '10:00-11:00': 2,
-    '11:00-20:00': 3,
-    '20:00-22:00': 2
-  } : {
-    '10:00-13:30': 2,
-    '13:30-18:30': 3,
-    '18:30-22:00': 2
-  };
+  // Calcola copertura oraria
+  const fasce = calcolaCoperturaFasce(turni);
 
-  // Calcola copertura oraria (semplificata)
-  const copertura = {};
-  
-  // Ore critiche da controllare
-  const oreCritiche = ['10:00', '11:00', '13:30', '14:00', '18:30', '20:00', '21:00'];
-  
-  oreCritiche.forEach(ora => {
-    const [h, m] = ora.split(':').map(Number);
-    const minuti = h * 60 + m;
-    
-    let persone = 0;
-    turni.forEach(turno => {
-      const [hInizio] = turno.ora_inizio.split(':').map(Number);
-      const [hFine] = turno.ora_fine.split(':').map(Number);
-      const minInizio = hInizio * 60;
-      const minFine = hFine * 60;
-      
-      if (minuti >= minInizio && minuti < minFine) {
-        persone++;
-      }
-    });
-    
-    copertura[ora] = persone;
-  });
-
-  // Verifica requisiti
+  // ✅ VALIDAZIONE BASATA SUL TIPO PRESIDIO
   if (tipoPresidio === 'base') {
-    if (copertura['10:00'] < 2 || copertura['13:00'] < 2) {
-      problemi.push('Presidio insufficiente prima delle 13:30 (min 2 persone)');
+    // PRESIDIO BASE: 10-13:30 (min 2), 13:30-18:30 (min 3), 18:30-22 (min 2)
+    if (fasce['10:00'] < 2 || fasce['13:00'] < 2) {
+      problemi.push('Presidio insufficiente 10:00-13:30 (min 2 persone)');
     }
-    if (copertura['14:00'] < 3 || copertura['18:00'] < 3) {
+    if (fasce['14:00'] < 3 || fasce['18:00'] < 3) {
       problemi.push('Presidio insufficiente 13:30-18:30 (min 3 persone)');
     }
-    if (copertura['20:00'] < 2 || copertura['21:00'] < 2) {
+    if (fasce['19:00'] < 2 || fasce['21:00'] < 2) {
       problemi.push('Presidio insufficiente 18:30-22:00 (min 2 persone)');
     }
   } else {
-    if (copertura['10:00'] < 2) {
-      problemi.push('Presidio insufficiente prima delle 11:00 (min 2 persone)');
+    // PRESIDIO RINFORZATO: 10-11 (min 2), 11-20 (min 3), 20-22 (min 2)
+    if (fasce['10:00'] < 2) {
+      problemi.push('Presidio insufficiente 10:00-11:00 (min 2 persone)');
     }
-    if (copertura['14:00'] < 3 || copertura['18:00'] < 3) {
+    if (fasce['12:00'] < 3 || fasce['15:00'] < 3 || fasce['18:00'] < 3) {
       problemi.push('Presidio insufficiente 11:00-20:00 (min 3 persone)');
     }
-    if (copertura['20:00'] < 2 || copertura['21:00'] < 2) {
+    if (fasce['20:00'] < 2 || fasce['21:00'] < 2) {
       problemi.push('Presidio insufficiente 20:00-22:00 (min 2 persone)');
     }
   }
@@ -207,20 +163,76 @@ const validaPresidioGiorno = async (settimana, giorno, tipoPresidio = 'base') =>
   return {
     giorno,
     tipoPresidio,
-    copertura,
+    copertura: fasce,
     problemi,
     stato: problemi.length > 0 ? 'errore' : 'ok'
   };
 };
 
 /**
- * GET VALIDAZIONI COMPLETE SETTIMANA
- * GET /api/validazioni/settimana/:data
- * Ritorna validazioni complete per tutti i dipendenti e tutti i giorni
+ * CALCOLA COPERTURA FASCE ORARIE
+ */
+const calcolaCoperturaFasce = (turniGiorno) => {
+  const copertura = {};
+  const oreCritiche = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '18:00', '19:00', '20:00', '21:00'];
+
+  oreCritiche.forEach(ora => {
+    const [h, m] = ora.split(':').map(Number);
+    const minuti = h * 60 + m;
+
+    let presenze = 0;
+    turniGiorno.forEach(turno => {
+      const oraInizio = turno.ora_inizio || getOrarioTurno(turno.tipo_turno, turno.oreSettimanali, turno.giorno_settimana).inizio;
+      const oraFine = turno.ora_fine || getOrarioTurno(turno.tipo_turno, turno.oreSettimanali, turno.giorno_settimana).fine;
+
+      const [hInizio] = oraInizio.substring(0, 5).split(':').map(Number);
+      const [hFine] = oraFine.substring(0, 5).split(':').map(Number);
+      const minInizio = hInizio * 60;
+      const minFine = hFine * 60;
+
+      if (minuti >= minInizio && minuti < minFine) {
+        presenze++;
+      }
+    });
+
+    copertura[ora] = presenze;
+  });
+
+  return copertura;
+};
+
+/**
+ * ✅ GET VALIDAZIONI COMPLETE SETTIMANA CON CONFIG PRESIDIO
  */
 const getValidazioniSettimana = async (req, res) => {
   try {
     const { data } = req.params;
+
+    // ✅ CARICA CONFIG PRESIDIO DAL DB
+    const configResult = await query(
+      'SELECT * FROM config_settimane WHERE settimana = $1',
+      [data]
+    );
+
+    let configPresidio = {
+      0: 'base', 1: 'base', 2: 'base', 3: 'base', 4: 'base',
+      5: 'rinforzato', 6: 'rinforzato'
+    };
+
+    if (configResult.rows.length > 0) {
+      const config = configResult.rows[0];
+      configPresidio = {
+        0: config.tipo_presidio_lun || 'base',
+        1: config.tipo_presidio_mar || 'base',
+        2: config.tipo_presidio_mer || 'base',
+        3: config.tipo_presidio_gio || 'base',
+        4: config.tipo_presidio_ven || 'base',
+        5: config.tipo_presidio_sab || 'rinforzato',
+        6: config.tipo_presidio_dom || 'rinforzato'
+      };
+    }
+
+    console.log('📊 Config presidio usato per validazioni:', configPresidio);
 
     // Ottieni tutti gli utenti (escluso manager)
     const usersResult = await query(
@@ -234,10 +246,10 @@ const getValidazioniSettimana = async (req, res) => {
       validazioniDipendenti.push(validazione);
     }
 
-    // Validazioni presidio (per ora base per infrasettimanali, rinforzato per weekend)
+    // ✅ Validazioni presidio CON CONFIG DINAMICO
     const validazioniPresidio = [];
     for (let giorno = 0; giorno <= 6; giorno++) {
-      const tipoPresidio = (giorno === 5 || giorno === 6) ? 'rinforzato' : 'base';
+      const tipoPresidio = configPresidio[giorno];
       const validazione = await validaPresidioGiorno(data, giorno, tipoPresidio);
       validazioniPresidio.push(validazione);
     }
@@ -262,6 +274,69 @@ const getValidazioniSettimana = async (req, res) => {
     console.error('Errore validazioni settimana:', error);
     res.status(500).json({ error: 'Errore interno del server' });
   }
+};
+
+/**
+ * GET ORARIO TURNO (helper) - FIXED per mar/gio
+ */
+const getOrarioTurno = (tipoTurno, oreSettimanali, giorno) => {
+  const conPausa = oreSettimanali >= 30;
+  const oraApertura = (giorno === 1 || giorno === 3) ? '09:00' : '09:30';
+  const offsetApertura = (giorno === 1 || giorno === 3) ? -0.5 : 0; // -30min per mar/gio
+  const oreGiorno = calcolaOreGiornaliere(oreSettimanali);
+
+  // Helper per aggiungere/sottrarre ore
+  const aggiungiOre = (orario, offset) => {
+    if (offset === 0) return orario;
+    const [ore, minuti] = orario.split(':').map(Number);
+    const minutiTotali = ore * 60 + minuti + (offset * 60);
+    const nuoveOre = Math.floor(minutiTotali / 60);
+    const nuoviMinuti = minutiTotali % 60;
+    return `${String(nuoveOre).padStart(2, '0')}:${String(nuoviMinuti).padStart(2, '0')}`;
+  };
+
+  const orari = {
+    APERTURA: {
+      5: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '15:00' : '14:30', offsetApertura) },
+      6: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '16:00' : '15:30', offsetApertura) },
+      7: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '17:00' : '16:30', offsetApertura) },
+      8: { inizio: oraApertura, fine: aggiungiOre(conPausa ? '18:00' : '17:30', offsetApertura) }
+    },
+    'CENTRALE': {
+      5: { inizio: '13:00', fine: conPausa ? '18:30' : '18:00' },
+      6: { inizio: '13:00', fine: conPausa ? '19:30' : '19:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '12:00', fine: conPausa ? '20:30' : '20:00' }
+    },
+    'CENTRALE-A': {
+      5: { inizio: '12:00', fine: conPausa ? '17:30' : '17:00' },
+      6: { inizio: '12:00', fine: conPausa ? '18:30' : '18:00' },
+      7: { inizio: '12:00', fine: conPausa ? '19:30' : '19:00' },
+      8: { inizio: '11:00', fine: conPausa ? '19:30' : '19:00' }
+    },
+    'CENTRALE-B': {
+      5: { inizio: '14:00', fine: conPausa ? '19:30' : '19:00' },
+      6: { inizio: '14:00', fine: conPausa ? '20:30' : '20:00' },
+      7: { inizio: '13:00', fine: conPausa ? '20:30' : '20:00' },
+      8: { inizio: '13:00', fine: conPausa ? '21:30' : '21:00' }
+    },
+    CHIUSURA: {
+      5: { inizio: conPausa ? '16:30' : '17:00', fine: '22:00' },
+      6: { inizio: conPausa ? '15:30' : '16:00', fine: '22:00' },
+      7: { inizio: conPausa ? '14:30' : '15:00', fine: '22:00' },
+      8: { inizio: conPausa ? '13:30' : '14:00', fine: '22:00' }
+    }
+  };
+
+  return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: oraApertura, fine: '17:30' };
+};
+
+const calcolaOreGiornaliere = (oreSettimanali) => {
+  const oreGiorno = oreSettimanali / 5;
+  if (oreGiorno >= 7.5) return 8;
+  if (oreGiorno >= 6.5) return 7;
+  if (oreGiorno >= 5.5) return 6;
+  return 5;
 };
 
 module.exports = {
