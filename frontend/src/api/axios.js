@@ -105,6 +105,23 @@ export const savePreferenze = (preferenzeData) => {
   return axiosInstance.post('/turni/preferenze', preferenzeData);
 };
 
+// ✅ ORE NL (NON LAVORATO)
+export const assegnaOreNL = (nlData) => {
+  return axiosInstance.post('/nl/assegna', nlData);
+};
+
+export const getOreNL = (userId, settimana) => {
+  return axiosInstance.get(`/nl/${userId}/${settimana}`);
+};
+
+export const getOreNLSettimana = (settimana) => {
+  return axiosInstance.get(`/nl/settimana/${settimana}`);
+};
+
+export const eliminaOreNL = (userId, settimana) => {
+  return axiosInstance.delete(`/nl/${userId}/${settimana}`);
+};
+
 export default axiosInstance;
 
 // VALIDAZIONI
