@@ -1,14 +1,12 @@
-// Controller per gestione turni
+// Controller per gestione turni - CON SUPPORTO NL
 const { query } = require('../config/database');
 
 /**
  * GET TURNI SETTIMANA
- * GET /api/turni/settimana/:data
- * Ritorna tutti i turni della settimana (data = lunedì)
  */
 const getTurniSettimana = async (req, res) => {
   try {
-    const { data } = req.params; // es. "2025-11-03"
+    const { data } = req.params;
 
     const result = await query(
       `SELECT t.*, u.nome, u.username, u.ore_settimanali
@@ -19,7 +17,6 @@ const getTurniSettimana = async (req, res) => {
       [data]
     );
 
-    // Raggruppa per giorno
     const turniPerGiorno = {};
     for (let i = 0; i <= 6; i++) {
       turniPerGiorno[i] = [];
@@ -42,8 +39,6 @@ const getTurniSettimana = async (req, res) => {
 
 /**
  * GET TURNI UTENTE
- * GET /api/turni/user/:userId/settimana/:data
- * Ritorna turni di un utente per una settimana specifica
  */
 const getTurniUtente = async (req, res) => {
   try {
@@ -68,13 +63,11 @@ const getTurniUtente = async (req, res) => {
 };
 
 /**
- * CREATE/UPDATE TURNO
- * POST /api/turni
- * Body: { user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno }
+ * CREATE/UPDATE TURNO - CON SUPPORTO NL
  */
 const createOrUpdateTurno = async (req, res) => {
   try {
-    const { user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno } = req.body;
+    const { user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive } = req.body;
 
     // Validazione
     if (!user_id || !settimana || giorno_settimana === undefined || !ora_inizio || !ora_fine || !tipo_turno) {
@@ -94,21 +87,28 @@ const createOrUpdateTurno = async (req, res) => {
 
     const oreSettimanali = userCheck.rows[0].ore_settimanali;
 
-    // Calcola ore_effettive per FERIE/MALATTIA
-    let oreEffettive = null;
-    if (tipo_turno === 'FERIE' || tipo_turno === 'MALATTIA') {
-      // Formula: ore_settimanali / 6, con eccezione per 40h = 8h
+    // ✅ Calcola ore_effettive
+    let oreEffettiveFinali = null;
+    
+    if (tipo_turno === 'NL') {
+      // NL: usa il valore passato dal frontend
+      if (!ore_effettive || ore_effettive <= 0) {
+        return res.status(400).json({ error: 'Per il turno NL è necessario specificare le ore' });
+      }
+      oreEffettiveFinali = ore_effettive;
+    } else if (tipo_turno === 'FERIE' || tipo_turno === 'MALATTIA') {
+      // FERIE/MALATTIA: formula ore_settimanali / 6
       if (oreSettimanali === 40) {
-        oreEffettive = 8;
+        oreEffettiveFinali = 8;
       } else {
-        oreEffettive = Math.round((oreSettimanali / 6) * 10) / 10;
+        oreEffettiveFinali = Math.round((oreSettimanali / 6) * 10) / 10;
       }
     }
 
-    // UPSERT: inserisci o aggiorna se esiste già
+    // UPSERT
     let result;
-    if (oreEffettive !== null) {
-      // Per FERIE/MALATTIA impostiamo ore_effettive manualmente
+    if (oreEffettiveFinali !== null) {
+      // Impostiamo ore_effettive manualmente
       result = await query(
         `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -120,10 +120,10 @@ const createOrUpdateTurno = async (req, res) => {
            ore_effettive = EXCLUDED.ore_effettive,
            updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, oreEffettive]
+        [user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, oreEffettiveFinali]
       );
     } else {
-      // Per altri turni, il trigger calcola automaticamente
+      // Il trigger calcola automaticamente
       result = await query(
         `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -150,7 +150,6 @@ const createOrUpdateTurno = async (req, res) => {
 
 /**
  * DELETE TURNO
- * DELETE /api/turni/:id
  */
 const deleteTurno = async (req, res) => {
   try {
@@ -177,7 +176,6 @@ const deleteTurno = async (req, res) => {
 
 /**
  * GET PREFERENZE UTENTE
- * GET /api/turni/preferenze/:userId/settimana/:data
  */
 const getPreferenze = async (req, res) => {
   try {
@@ -203,8 +201,6 @@ const getPreferenze = async (req, res) => {
 
 /**
  * SAVE PREFERENZE
- * POST /api/turni/preferenze
- * Body: { user_id, settimana, preferenze: [{giorno_settimana, tipo_preferenza}] }
  */
 const savePreferenze = async (req, res) => {
   try {
@@ -244,10 +240,8 @@ const savePreferenze = async (req, res) => {
   }
 };
 
-
 /**
  * DELETE ALL TURNI SETTIMANA
- * DELETE /api/turni/reset-settimana/:data
  */
 const resetSettimana = async (req, res) => {
   try {

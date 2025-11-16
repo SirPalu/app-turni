@@ -13,6 +13,7 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
   const turni = result.rows;
   
   let ore_lavorate = 0;
+  let ore_nl = 0; // ✅ Ore NL assegnate
   let giorni_off = 0;
   let chiusure = 0;
   let aperture = 0;
@@ -26,7 +27,14 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
     }
 
     if (turno.ore_effettive) {
-      ore_lavorate += parseFloat(turno.ore_effettive);
+      const ore = parseFloat(turno.ore_effettive);
+      
+      // ✅ Se è NL, conta separatamente
+      if (turno.tipo_turno === 'NL') {
+        ore_nl += ore;
+      } else {
+        ore_lavorate += ore;
+      }
     }
     
     if (turno.tipo_turno === 'CHIUSURA') chiusure++;
@@ -36,8 +44,18 @@ const calcolaContatoriDipendente = async (userId, settimana) => {
     if (turno.giorno_settimana === 6) fes++;
   });
 
+  // ✅ Ottieni ore da contratto
+  const userResult = await query('SELECT ore_settimanali FROM users WHERE id = $1', [userId]);
+  const ore_contratto = userResult.rows[0]?.ore_settimanali || 0;
+  
+  // ✅ Calcola ore da recuperare (questa settimana)
+  const ore_da_recuperare = ore_lavorate - ore_contratto;
+
   return {
     ore_lavorate: ore_lavorate.toFixed(1),
+    ore_nl: ore_nl.toFixed(1),
+    ore_contratto,
+    ore_da_recuperare: ore_da_recuperare.toFixed(1),
     giorni_off,
     chiusure,
     aperture,
@@ -330,6 +348,7 @@ const getOrarioTurno = (tipoTurno, oreSettimanali, giorno) => {
 
   return orari[tipoTurno]?.[oreGiorno] || orari[tipoTurno]?.[8] || { inizio: oraApertura, fine: '17:30' };
 };
+  
 
 const calcolaOreGiornaliere = (oreSettimanali) => {
   const oreGiorno = oreSettimanali / 5;

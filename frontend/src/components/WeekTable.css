@@ -328,3 +328,68 @@
     padding: 4px 6px;
   }
 }
+
+.turno-nl {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.turno-nl .turno-tipo {
+  background-color: #17a2b8;
+  color: white;
+}
+/* Wrapper info dipendente con NL */
+.dipendente-info-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Badge ore NL */
+.nl-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #17a2b8;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Pulsante Assegna NL */
+.btn-assegna-nl {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.btn-assegna-nl:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dipendente-info-wrapper {
+    gap: 5px;
+  }
+
+  .btn-assegna-nl {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .nl-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}

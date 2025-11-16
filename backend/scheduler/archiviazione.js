@@ -1,17 +1,67 @@
-// Scheduler per archiviazione automatica settimana passata
+// Scheduler per archiviazione automatica settimana passata - CON NL
 const cron = require('node-cron');
 const { query } = require('../config/database');
-const { calcolaContatoriDipendente } = require('../controllers/validazioniController');
+
+/**
+ * ✅ CALCOLA CONTATORI DIPENDENTE CON NL
+ */
+const calcolaContatoriDipendente = async (userId, settimana) => {
+  const result = await query(
+    `SELECT * FROM turni WHERE user_id = $1 AND settimana = $2`,
+    [userId, settimana]
+  );
+
+  const turni = result.rows;
+  
+  let ore_lavorate = 0;
+  let ore_nl = 0;
+  let giorni_off = 0;
+  let chiusure = 0;
+  let aperture = 0;
+  let pfes = 0;
+  let fes = 0;
+
+  turni.forEach(turno => {
+    if (turno.tipo_turno === 'OFF') {
+      giorni_off++;
+      return;
+    }
+
+    if (turno.ore_effettive) {
+      const ore = parseFloat(turno.ore_effettive);
+      
+      if (turno.tipo_turno === 'NL') {
+        ore_nl += ore;
+      } else {
+        ore_lavorate += ore;
+      }
+    }
+    
+    if (turno.tipo_turno === 'CHIUSURA') chiusure++;
+    if (turno.tipo_turno === 'APERTURA') aperture++;
+    
+    if (turno.giorno_settimana === 5 && turno.tipo_turno !== 'OFF') pfes++;
+    if (turno.giorno_settimana === 6 && turno.tipo_turno !== 'OFF') fes++;
+  });
+
+  return {
+    ore_lavorate: ore_lavorate.toFixed(1),
+    ore_nl: ore_nl.toFixed(1),
+    giorni_off,
+    aperture,
+    chiusure,
+    pfes,
+    fes
+  };
+};
 
 /**
  * Archivia settimana passata e aggiorna storico contatori
- * Esegue ogni domenica alle 23:59
  */
 const archiviaSettimanaPrecedente = async () => {
   try {
     console.log('🔄 Inizio archiviazione settimana passata...');
 
-    // Calcola date
     const oggi = new Date();
     const lunediCorrente = new Date(oggi);
     lunediCorrente.setDate(oggi.getDate() - (oggi.getDay() === 0 ? 6 : oggi.getDay() - 1));
@@ -24,7 +74,7 @@ const archiviaSettimanaPrecedente = async () => {
 
     console.log(`📅 Archiviazione settimana: ${settimanaPassata}`);
 
-    // 1. Verifica se la settimana è già stata archiviata
+    // Verifica se la settimana è già stata archiviata
     const checkStorico = await query(
       'SELECT id FROM storico_contatori WHERE settimana = $1 LIMIT 1',
       [settimanaPassata]
@@ -35,29 +85,30 @@ const archiviaSettimanaPrecedente = async () => {
       return;
     }
 
-    // 2. Ottieni tutti i dipendenti (escluso manager)
+    // Ottieni tutti i dipendenti (escluso manager)
     const usersResult = await query(
       "SELECT id, ore_settimanali FROM users WHERE ruolo != 'manager'"
     );
 
     let contatoriArchiviati = 0;
 
-    // 3. Per ogni dipendente, calcola contatori e inserisci nello storico
+    // Per ogni dipendente, calcola contatori e inserisci nello storico
     for (const user of usersResult.rows) {
       const contatori = await calcolaContatoriDipendente(user.id, settimanaPassata);
 
-      // Inserisci nello storico (somma ai valori esistenti)
+      // ✅ Inserisci nello storico con ore_nl
       await query(
         `INSERT INTO storico_contatori (
-          user_id, settimana, ore_lavorate, ore_da_contratto, 
+          user_id, settimana, ore_lavorate, ore_da_contratto, ore_nl,
           giorni_off, turni_apertura, turni_chiusura, giorni_pfes, giorni_fes,
           storicizzata, storicizzata_il
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, CURRENT_TIMESTAMP)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP)`,
         [
           user.id,
           settimanaPassata,
           contatori.ore_lavorate,
           user.ore_settimanali,
+          contatori.ore_nl,
           contatori.giorni_off,
           contatori.aperture,
           contatori.chiusure,
@@ -69,7 +120,7 @@ const archiviaSettimanaPrecedente = async () => {
       contatoriArchiviati++;
     }
 
-    // 4. Marca la settimana come storicizzata
+    // Marca la settimana come storicizzata
     await query(
       `UPDATE config_settimane 
        SET stato = 'storicizzata', approvata_il = CURRENT_TIMESTAMP 
@@ -86,11 +137,8 @@ const archiviaSettimanaPrecedente = async () => {
 
 /**
  * Avvia scheduler
- * Esegue ogni domenica alle 23:59
  */
 const avviaScheduler = () => {
-  // Cron: minuto ora giorno mese giorno_settimana
-  // 59 23 * * 0 = ogni domenica alle 23:59
   cron.schedule('59 23 * * 0', () => {
     console.log('⏰ Scheduler archiviazione attivato');
     archiviaSettimanaPrecedente();
@@ -101,7 +149,9 @@ const avviaScheduler = () => {
   console.log('📅 Scheduler archiviazione attivo (domenica 23:59)');
 };
 
-// Funzione manuale per test
+/**
+ * Funzione manuale per test
+ */
 const archiviaManualmente = async (settimana) => {
   console.log(`🔧 Archiviazione manuale settimana: ${settimana}`);
   
@@ -114,12 +164,13 @@ const archiviaManualmente = async (settimana) => {
 
     await query(
       `INSERT INTO storico_contatori (
-        user_id, settimana, ore_lavorate, ore_da_contratto, 
+        user_id, settimana, ore_lavorate, ore_da_contratto, ore_nl,
         giorni_off, turni_apertura, turni_chiusura, giorni_pfes, giorni_fes,
         storicizzata, storicizzata_il
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, CURRENT_TIMESTAMP)
       ON CONFLICT (user_id, settimana) DO UPDATE SET
         ore_lavorate = EXCLUDED.ore_lavorate,
+        ore_nl = EXCLUDED.ore_nl,
         turni_apertura = EXCLUDED.turni_apertura,
         turni_chiusura = EXCLUDED.turni_chiusura,
         giorni_pfes = EXCLUDED.giorni_pfes,
@@ -130,6 +181,7 @@ const archiviaManualmente = async (settimana) => {
         settimana,
         contatori.ore_lavorate,
         user.ore_settimanali,
+        contatori.ore_nl,
         contatori.giorni_off,
         contatori.aperture,
         contatori.chiusure,

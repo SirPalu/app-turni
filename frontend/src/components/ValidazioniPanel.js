@@ -198,6 +198,8 @@ const ValidazioniPanel = ({ settimana, onRefresh, configPresidio }) => {
                     <th>Dipendente</th>
                     <th>Stato</th>
                     <th>Ore</th>
+                    <th>Contratto</th>
+                    <th>Da Recuperare</th>
                     <th>OFF</th>
                     <th>Chiusure</th>
                     <th>Aperture</th>
@@ -212,6 +214,16 @@ const ValidazioniPanel = ({ settimana, onRefresh, configPresidio }) => {
                       <td><strong>{val.nome}</strong></td>
                       <td className="text-center">{getStatoIcon(val.stato)}</td>
                       <td>{val.contatori.ore_lavorate}h</td>
+                      <td>{val.contatori.ore_contratto}h</td>
+                      <td className="text-center">
+                        <span style={{ 
+                          color: parseFloat(val.contatori.ore_da_recuperare) > 0 ? '#dc3545' : 
+                                 parseFloat(val.contatori.ore_da_recuperare) < 0 ? '#28a745' : '#666',
+                          fontWeight: 'bold'
+                        }}>
+                          {val.contatori.ore_da_recuperare > 0 ? '+' : ''}{val.contatori.ore_da_recuperare}h
+                        </span>
+                      </td>
                       <td>{val.contatori.giorni_off}</td>
                       <td>{val.contatori.chiusure}</td>
                       <td>{val.contatori.aperture}</td>

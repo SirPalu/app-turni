@@ -1,7 +1,8 @@
-// Componente Tabella Turni Settimanali
+// Componente Tabella Turni Settimanali - CON ASSEGNAZIONE NL
 import React, { useState, useEffect } from 'react';
-import { getTurniSettimana, getAllUsers, updatePresidioGiorno, getConfigPresidio } from '../api/axios';
+import { getTurniSettimana, getAllUsers, updatePresidioGiorno, getConfigPresidio, getOreNLSettimana } from '../api/axios';
 import GiornoDetailModal from './GiornoDetailModal';
+import AssegnaNLModal from './AssegnaNLModal';
 import './WeekTable.css';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
@@ -19,19 +20,20 @@ const WeekTable = ({
   const [error, setError] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedGiornoDetail, setSelectedGiornoDetail] = useState(null);
+  const [nlModalOpen, setNlModalOpen] = useState(false);
+  const [selectedUserForNL, setSelectedUserForNL] = useState(null);
+  const [oreNLPerUser, setOreNLPerUser] = useState({});
   
-  // Config presidio
   const [configPresidio, setConfigPresidio] = useState(
     externalConfig || {
       0: 'base', 1: 'base', 2: 'base', 3: 'base', 4: 'base',
       5: 'rinforzato', 6: 'rinforzato'
     }
   );
-  const [loadingPresidio, setLoadingPresidio] = useState({});
 
-  // Sincronizza config presidio esterna
   useEffect(() => {
     if (externalConfig) {
+      console.log('📥 WeekTable ricevuto config esterno:', externalConfig);
       setConfigPresidio(externalConfig);
     }
   }, [externalConfig]);
@@ -46,25 +48,27 @@ const WeekTable = ({
     }
   }, [settimana, editable, externalConfig]);
 
+  // ✅ Carica ore NL per tutti i dipendenti
+  useEffect(() => {
+    if (utenti.length > 0) {
+      loadOreNL();
+    }
+  }, [utenti, settimana]);
+
   const loadTurni = async () => {
     try {
       setLoading(true);
       setError(null);
       
-							  
       const turniResponse = await getTurniSettimana(settimana);
       const turniData = turniResponse.data.turni;
       setTurni(turniData);
       
-					  
       console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
       
-										 
       if (editable) {
-															
         try {
           const usersResponse = await getAllUsers();
-						   
           const filteredUsers = usersResponse.data.users.filter(u => u.ruolo !== 'manager');
           setUtenti(filteredUsers);
         } catch (err) {
@@ -72,7 +76,6 @@ const WeekTable = ({
           setError('Impossibile caricare la lista utenti');
         }
       } else {
-													  
         const allTurni = Object.values(turniData).flat();
         if (allTurni.length > 0) {
           const uniqueUsers = [...new Map(
@@ -94,70 +97,84 @@ const WeekTable = ({
 
   const loadConfigPresidioInternal = async () => {
     try {
-															   
       const response = await getConfigPresidio(settimana);
       setConfigPresidio(response.data.presidio);
     } catch (err) {
       console.error('Errore caricamento config presidio:', err);
     }
-   
+  };
+
+  // ✅ Carica ore NL per la settimana
+  const loadOreNL = async () => {
+    try {
+      const response = await getOreNLSettimana(settimana);
+      const nlMap = {};
+      response.data.ore_nl.forEach(nl => {
+        nlMap[nl.user_id] = nl;
+      });
+      setOreNLPerUser(nlMap);
+      console.log('✅ Ore NL caricate:', nlMap);
+    } catch (err) {
+      console.log('Nessuna ore NL per questa settimana');
+      setOreNLPerUser({});
+    }
   };
 
   const handlePresidioChange = async (giorno, nuovoTipo) => {
     if (!editable) return;
 
     try {
-      setLoadingPresidio(prev => ({ ...prev, [giorno]: true }));
+      console.log(`🔄 Cambio presidio: giorno ${giorno} -> ${nuovoTipo}`);
       
-      // USA LA FUNZIONE API
       await updatePresidioGiorno(settimana, giorno, nuovoTipo);
+      console.log('✅ Presidio aggiornato nel DB');
 
-      // Aggiorna stato locale
-      setConfigPresidio(prev => ({ ...prev, [giorno]: nuovoTipo }));
+      setConfigPresidio(prev => {
+        const newConfig = { ...prev, [giorno]: nuovoTipo };
+        console.log('📊 Nuovo config locale:', newConfig);
+        return newConfig;
+      });
       
-      console.log(`✅ Presidio giorno ${giorno} cambiato a: ${nuovoTipo}`);
-      
-      // Notifica parent
       if (onPresidioChange) {
-        onPresidioChange();
-												
-							
-													   
+        console.log('📤 Notifica parent del cambio');
+        onPresidioChange(giorno, nuovoTipo);
       }
-	  
 
     } catch (err) {
       console.error('Errore cambio presidio:', err);
-      console.error('Dettaglio:', err.response?.data);
       alert(`Errore: ${err.response?.data?.error || err.message}`);
-    } finally {
-      setLoadingPresidio(prev => ({ ...prev, [giorno]: false }));
-						   
-						 
+      
+      if (editable && !externalConfig) {
+        loadConfigPresidioInternal();
+      }
     }
   };
 
-				 
-												  
-														   
-																								  
-			 
-															   
-   
-  
-									
+  // ✅ Gestione modal NL
+  const handleOpenNLModal = (utente) => {
+    setSelectedUserForNL(utente);
+    setNlModalOpen(true);
+  };
+
+  const handleCloseNLModal = () => {
+    setNlModalOpen(false);
+    setSelectedUserForNL(null);
+  };
+
+  const handleSaveNL = () => {
+    loadOreNL();
+  };
+
   const getTurnoForUserDay = (userId, giorno) => {
     const turniGiorno = turni[giorno] || [];
     return turniGiorno.find(t => t.user_id === userId);
   };
 
-					
   const formatTime = (time) => {
     if (!time) return '';
     return time.substring(0, 5);
   };
 
-										   
   const getTurnoClass = (tipo) => {
     switch (tipo) {
       case 'APERTURA': return 'turno-apertura';
@@ -211,22 +228,20 @@ const WeekTable = ({
                     <div className="giorno-nome">
                       {giorno} 
                       {editable && (
-                        <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '5px' }}>🔍</span>
-                      )}
+                      <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '5px' }}>🔍</span>
+                    )}
                     </div>
                     <div className="giorno-data">
                       {new Date(new Date(settimana).getTime() + idx * 86400000)
                         .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
                     </div>
 
-															  
                     {editable && (
                       <div className="presidio-selector" onClick={(e) => e.stopPropagation()}>
                         <select
-                          className={`presidio-select ${loadingPresidio[idx] ? 'changing' : ''}`}
+                          className="presidio-select"
                           value={configPresidio[idx] || 'base'}
                           onChange={(e) => handlePresidioChange(idx, e.target.value)}
-                          disabled={loadingPresidio[idx]}
                         >
                           <option value="base">📊 Base</option>
                           <option value="rinforzato">💪 Rinforzato</option>
@@ -234,7 +249,6 @@ const WeekTable = ({
                       </div>
                     )}
 
-														   
                     {!editable && (
                       <div className={`presidio-badge ${configPresidio[idx] || 'base'}`}>
                         {configPresidio[idx] === 'rinforzato' ? '💪 Rinf.' : '📊 Base'}
@@ -256,7 +270,27 @@ const WeekTable = ({
               utenti.map(utente => (
                 <tr key={utente.id}>
                   <td className="dipendente-cell">
-                    <strong>{utente.nome}</strong>
+                    <div className="dipendente-info-wrapper">
+                      <strong>{utente.nome}</strong>
+                      
+                      {/* ✅ Badge ore NL */}
+                      {oreNLPerUser[utente.id] && (
+                        <div className="nl-badge" title={oreNLPerUser[utente.id].motivo || 'Non Lavorato'}>
+                          🔵 NL: {oreNLPerUser[utente.id].ore_nl}h
+                        </div>
+                      )}
+                      
+                      {/* ✅ Pulsante Assegna NL (solo admin) */}
+                      {editable && (
+                        <button 
+                          className="btn-assegna-nl"
+                          onClick={() => handleOpenNLModal(utente)}
+                          title="Assegna ore Non Lavorato"
+                        >
+                          {oreNLPerUser[utente.id] ? '✏️ Modifica NL' : '➕ Assegna NL'}
+                        </button>
+                      )}
+                    </div>
                   </td>
                   {[0, 1, 2, 3, 4, 5, 6].map(giorno => {
                     const turno = getTurnoForUserDay(utente.id, giorno);
@@ -311,16 +345,30 @@ const WeekTable = ({
           <span className="legend-item turno-centrale">Centrale</span>
           <span className="legend-item turno-chiusura">Chiusura</span>
           <span className="legend-item turno-ferie">Ferie</span>
+          <span className="legend-item" style={{ background: '#d1ecf1', color: '#0c5460', padding: '5px 12px', borderRadius: '4px' }}>
+            🔵 NL = Non Lavorato
+          </span>
         </div>
       )}
 
-									
       <GiornoDetailModal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         settimana={settimana}
         giorno={selectedGiornoDetail}
       />
+
+      {/* ✅ Modal Assegna NL */}
+      {nlModalOpen && selectedUserForNL && (
+        <AssegnaNLModal
+          isOpen={nlModalOpen}
+          onClose={handleCloseNLModal}
+          onSave={handleSaveNL}
+          userId={selectedUserForNL.id}
+          userName={selectedUserForNL.nome}
+          settimana={settimana}
+        />
+      )}
     </div>
   );
 };

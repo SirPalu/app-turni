@@ -4,7 +4,7 @@ import { createOrUpdateTurno, deleteTurno, getUserById } from '../api/axios';
 import './TurnoModal.css';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const TIPI_TURNO = ['OFF', 'APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA'];
+const TIPI_TURNO = ['OFF', 'APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA', 'NL'];
 
 // Calcola ore giornaliere in base a contratto
 const calcolaOreGiornaliere = (oreSettimanali) => {
@@ -71,6 +71,7 @@ const getOrariPredefiniti = (tipoTurno, oreGiorno, oreSettimanali = 36, giornoSe
     },
     FERIE: { inizio: '00:00', fine: '00:00' },
     MALATTIA: { inizio: '00:00', fine: '00:00' },
+    NL: { inizio: '00:00', fine: '00:00' },
     OFF: { inizio: '00:00', fine: '00:00' }
   };
 
@@ -109,6 +110,7 @@ const TurnoModal = ({
   const [tipoTurno, setTipoTurno] = useState('APERTURA');
   const [oraInizio, setOraInizio] = useState('09:30');
   const [oraFine, setOraFine] = useState('17:30');
+  const [oreNL, setOreNL] = useState(0); // ✅ Ore NL personalizzate
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [oreSettimanali, setOreSettimanali] = useState(36);
@@ -160,6 +162,11 @@ const TurnoModal = ({
       return calcolaOreFerieMalattia(oreSettimanali);
     }
     
+    // NL: ore personalizzate (usa il campo ore_effettive manuale)
+    if (tipoTurno === 'NL') {
+      return 0; // Verrà impostato manualmente
+    }
+    
     if (!oraInizio || !oraFine) return 0;
     
     const [hInizio, mInizio] = oraInizio.split(':').map(Number);
@@ -171,7 +178,7 @@ const TurnoModal = ({
     let oreTotali = (minFine - minInizio) / 60;
     
     // Sottrai pausa pranzo se >= 30h contratto
-    if (oreSettimanali >= 30 && !['OFF', 'FERIE', 'MALATTIA'].includes(tipoTurno)) {
+    if (oreSettimanali >= 30 && !['OFF', 'FERIE', 'MALATTIA', 'NL'].includes(tipoTurno)) {
       oreTotali -= 0.5; // -30 minuti
     }
     

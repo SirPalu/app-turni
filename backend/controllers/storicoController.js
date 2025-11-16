@@ -1,4 +1,4 @@
-// Controller per storico contatori
+// Controller per storico contatori - CON ORE DA RECUPERARE CUMULATIVE
 const { query } = require('../config/database');
 
 /**
@@ -13,6 +13,7 @@ const getStoricoRiassuntivo = async (req, res) => {
         u.nome,
         u.ore_settimanali,
         COALESCE(SUM(s.ore_lavorate), 0) as ore_totali,
+        COALESCE(SUM(s.ore_nl), 0) as ore_nl_totali,
         COALESCE(SUM(s.turni_apertura), 0) as aperture_totali,
         COALESCE(SUM(s.turni_chiusura), 0) as chiusure_totali,
         COALESCE(SUM(s.giorni_pfes), 0) as sabati_totali,
@@ -28,8 +29,21 @@ const getStoricoRiassuntivo = async (req, res) => {
        ORDER BY u.nome`
     );
 
-    // Calcola medie e sbilanciamenti
-    const dipendenti = result.rows;
+    const dipendenti = result.rows.map(d => {
+      // ✅ Calcola ore da recuperare cumulative
+      // Formula: SUM(ore_lavorate - ore_contratto) - SUM(ore_nl)
+      const settimane = parseInt(d.settimane_lavorate);
+      const ore_contratto_totali = settimane * d.ore_settimanali;
+      const ore_lavorate = parseFloat(d.ore_totali);
+      const ore_nl = parseFloat(d.ore_nl_totali);
+      
+      const ore_da_recuperare_cumulative = (ore_lavorate - ore_contratto_totali) - ore_nl;
+      
+      return {
+        ...d,
+        ore_da_recuperare_cumulative: ore_da_recuperare_cumulative.toFixed(1)
+      };
+    });
     
     if (dipendenti.length > 0) {
       const medieDomeniche = dipendenti.reduce((sum, d) => sum + parseFloat(d.domeniche_totali), 0) / dipendenti.length;
@@ -74,7 +88,7 @@ const getStoricoDettaglioDipendente = async (req, res) => {
     const { userId } = req.params;
 
     const result = await query(
-      `SELECT s.*, u.nome
+      `SELECT s.*, u.nome, u.ore_settimanali
        FROM storico_contatori s
        JOIN users u ON s.user_id = u.id
        WHERE s.user_id = $1 AND s.storicizzata = TRUE
@@ -82,10 +96,38 @@ const getStoricoDettaglioDipendente = async (req, res) => {
       [userId]
     );
 
+    // ✅ Aggiungi calcolo ore da recuperare per ogni settimana
+    const storico = result.rows.map(record => {
+      const ore_lavorate = parseFloat(record.ore_lavorate);
+      const ore_contratto = parseFloat(record.ore_da_contratto);
+      const ore_nl = parseFloat(record.ore_nl || 0);
+      const ore_da_recuperare = ore_lavorate - ore_contratto;
+      
+      return {
+        ...record,
+        ore_da_recuperare: ore_da_recuperare.toFixed(1)
+      };
+    });
+
+    // ✅ Calcola ore da recuperare cumulative fino ad oggi
+    let ore_recuperare_cumulative = 0;
+    const storicoConCumulativi = storico.reverse().map(record => {
+      const ore_settimana = parseFloat(record.ore_da_recuperare);
+      const ore_nl_settimana = parseFloat(record.ore_nl || 0);
+      ore_recuperare_cumulative += ore_settimana - ore_nl_settimana;
+      
+      return {
+        ...record,
+        ore_recuperare_cumulative: ore_recuperare_cumulative.toFixed(1)
+      };
+    }).reverse();
+
     res.json({
       userId: parseInt(userId),
       nome: result.rows[0]?.nome || 'Unknown',
-      storico: result.rows
+      ore_settimanali: result.rows[0]?.ore_settimanali || 0,
+      ore_da_recuperare_totali: ore_recuperare_cumulative.toFixed(1),
+      storico: storicoConCumulativi
     });
 
   } catch (error) {
