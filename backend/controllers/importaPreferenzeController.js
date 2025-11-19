@@ -82,6 +82,26 @@ const importaPreferenze = async (req, res) => {
 
     console.log(`📥 Importazione preferenze per settimana ${settimana}`);
 
+    // ✅ Carica anche ferie approvate per questa settimana
+const lunedi = new Date(settimana);
+const domenica = new Date(lunedi);
+domenica.setDate(lunedi.getDate() + 6);
+
+const ferieResult = await query(
+  `SELECT 
+    user_id,
+    data_richiesta,
+    tipo_approvazione
+   FROM richieste_ferie
+   WHERE data_richiesta >= $1 
+     AND data_richiesta <= $2
+     AND tipo_approvazione IN ('approvata', 'off_approvato')
+   ORDER BY data_richiesta`,
+  [lunedi.toISOString().split('T')[0], domenica.toISOString().split('T')[0]]
+);
+
+console.log(`🏖️ Trovate ${ferieResult.rows.length} ferie approvate per questa settimana`);
+
     // Carica preferenze con info utente
     const prefResult = await query(
       `SELECT p.*, u.ore_settimanali, u.nome
@@ -102,6 +122,60 @@ const importaPreferenze = async (req, res) => {
 
     let turniImportati = 0;
     let turniEsistentiSkip = 0;
+
+// ✅ Prima importa le ferie approvate
+for (const ferie of ferieResult.rows) {
+  const dataRichiesta = new Date(ferie.data_richiesta);
+  const giornoSettimana = (dataRichiesta.getDay() + 6) % 7; // Converti in 0=Lun
+
+  // Verifica se esiste già un turno
+  const turnoCheck = await query(
+    `SELECT id FROM turni 
+     WHERE user_id = $1 AND settimana = $2 AND giorno_settimana = $3`,
+    [ferie.user_id, settimana, giornoSettimana]
+  );
+
+  if (turnoCheck.rows.length > 0) {
+    turniEsistentiSkip++;
+    continue;
+  }
+
+  // Ottieni info utente per calcolare ore
+  const userInfo = await query(
+    'SELECT nome, ore_settimanali FROM users WHERE id = $1',
+    [ferie.user_id]
+  );
+
+  if (userInfo.rows.length === 0) continue;
+
+  const tipoTurno = ferie.tipo_approvazione === 'approvata' ? 'FERIE' : 'OFF';
+  const oreSettimanali = userInfo.rows[0].ore_settimanali;
+
+  if (tipoTurno === 'FERIE') {
+    // Calcola ore ferie (ore_settimanali / 6)
+    const oreFerie = oreSettimanali === 40 ? 8 : Math.round((oreSettimanali / 6) * 10) / 10;
+
+    await query(
+      `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive)
+       VALUES ($1, $2, $3, '00:00:00', '00:00:00', 'FERIE', $4)
+       ON CONFLICT (user_id, settimana, giorno_settimana) DO NOTHING`,
+      [ferie.user_id, settimana, giornoSettimana, oreFerie]
+    );
+  } else {
+    // OFF
+    await query(
+      `INSERT INTO turni (user_id, settimana, giorno_settimana, ora_inizio, ora_fine, tipo_turno, ore_effettive)
+       VALUES ($1, $2, $3, '00:00:00', '00:00:00', 'OFF', 0)
+       ON CONFLICT (user_id, settimana, giorno_settimana) DO NOTHING`,
+      [ferie.user_id, settimana, giornoSettimana]
+    );
+  }
+
+  turniImportati++;
+  console.log(`  ✓ ${userInfo.rows[0].nome}: ${tipoTurno} da ferie approvate - giorno ${giornoSettimana}`);
+}
+
+// Poi continua con le preferenze manuali
 
     for (const pref of prefResult.rows) {
       // Verifica se esiste già un turno

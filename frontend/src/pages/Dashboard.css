@@ -119,21 +119,36 @@
 }
 
 .week-btn {
-  padding: 12px 25px;
+  padding: 15px 20px;
   background: white;
   color: #667eea;
   border: 2px solid #667eea;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  text-align: center;
+  line-height: 1.6;
+  min-width: 180px;
 }
 
 .week-btn:hover {
-  background: #667eea;
-  color: white;
+  background: #f0f0ff;
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.week-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+}
+
+.week-btn.active:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b3f8a 100%);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
@@ -271,4 +286,16 @@
 
 .btn-action.btn-danger:hover {
   background-color: #c82333;
+}
+
+/* Animazione badge notifica */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.6);
+  }
 }

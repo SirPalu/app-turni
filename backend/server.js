@@ -14,6 +14,7 @@ const algoritmoRoutes = require('./routes/algoritmoRoutes');
 const presidioRoutes = require('./routes/presidioRoutes'); // ✅ AGGIUNTO
 const storicoRoutes = require('./routes/storicoRoutes');
 const nlRoutes = require('./routes/nlRoutes');
+const ferieRoutes = require('./routes/ferieRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,6 +86,7 @@ app.use('/api/algoritmo', algoritmoRoutes);
 app.use('/api/presidio', presidioRoutes); // ✅ AGGIUNTO - ROUTE PRESIDIO
 app.use('/api/storico', storicoRoutes);
 app.use('/api/nl', nlRoutes);
+app.use('/api/ferie', ferieRoutes);
 
 // ===== ERROR HANDLERS =====
 

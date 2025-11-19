@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import WeekTable from '../components/WeekTable';
 import PreferenzeForm from '../components/PreferenzeForm';
+import CalendarioFerie from '../components/CalendarioFerie';
 import './Dashboard.css';
 
 const DashboardDipendente = () => {
@@ -17,7 +18,7 @@ const DashboardDipendente = () => {
   const nextMonday = new Date(currentMonday);
   nextMonday.setDate(currentMonday.getDate() + 7);
   
-  const [viewMode, setViewMode] = useState('turni'); // 'turni' o 'preferenze'
+ const [viewMode, setViewMode] = useState('turni'); // 'turni', 'preferenze', 'ferie'
   const [selectedWeek, setSelectedWeek] = useState(currentMonday.toISOString().split('T')[0]);
 
   const formatDate = (dateStr) => {
@@ -66,6 +67,14 @@ const DashboardDipendente = () => {
         >
           🎯 Inserisci Preferenze
         </button>
+
+        <button 
+  className={`tab ${viewMode === 'ferie' ? 'active' : ''}`}
+  onClick={() => setViewMode('ferie')}
+>
+  🏖️ Richiedi Ferie
+</button>
+
       </div>
 
       {/* Contenuto */}
@@ -99,6 +108,7 @@ const DashboardDipendente = () => {
         )}
 
         {viewMode === 'preferenze' && (
+          
           <div className="preferenze-view">
             <div className="info-card info-warning">
               <h4>⚠️ Scadenza inserimento preferenze</h4>
@@ -112,6 +122,11 @@ const DashboardDipendente = () => {
             <PreferenzeForm settimana={nextMonday.toISOString().split('T')[0]} />
           </div>
         )}
+        {viewMode === 'ferie' && (
+  <div className="ferie-view">
+    <CalendarioFerie />
+  </div>
+)}
       </div>
     </div>
   );

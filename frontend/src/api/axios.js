@@ -122,6 +122,29 @@ export const eliminaOreNL = (userId, settimana) => {
   return axiosInstance.delete(`/nl/${userId}/${settimana}`);
 };
 
+// FERIE
+export const creaRichiestaFerie = (ferieData) => {
+  return axiosInstance.post('/ferie/richiesta', ferieData);
+};
+
+export const getRichiesteDipendente = (userId, stato) => {
+  const params = stato ? `?stato=${stato}` : '';
+  return axiosInstance.get(`/ferie/mie/${userId}${params}`);
+};
+
+export const eliminaRichiesta = (richiestaId) => {
+  return axiosInstance.delete(`/ferie/richiesta/${richiestaId}`);
+};
+
+export const getTutteRichiesteFerie = (filtri) => {
+  const params = new URLSearchParams(filtri).toString();
+  return axiosInstance.get(`/ferie/tutte${params ? '?' + params : ''}`);
+};
+
+export const gestisciRichiestaFerie = (richiestaId, azione, note) => {
+  return axiosInstance.put(`/ferie/gestisci/${richiestaId}`, { azione, note_admin: note });
+};
+
 export default axiosInstance;
 
 // VALIDAZIONI

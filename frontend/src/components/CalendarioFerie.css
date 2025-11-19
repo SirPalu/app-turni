@@ -1,0 +1,322 @@
+/* Stili Calendario Ferie */
+
+.calendario-ferie-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.calendario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.mese-selector {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.btn-mese {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #667eea;
+  cursor: pointer;
+  padding: 5px 15px;
+  border-radius: 5px;
+  transition: all 0.3s;
+}
+
+.btn-mese:hover {
+  background: #f0f0ff;
+  transform: scale(1.1);
+}
+
+.mese-corrente {
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
+  min-width: 200px;
+  text-align: center;
+}
+
+.selezione-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.selezione-info.has-selection {
+  background: #e7f3ff;
+  border-left-color: #007bff;
+}
+
+.selezione-count {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 18px;
+}
+
+.btn-clear-selection {
+  padding: 8px 15px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-clear-selection:hover {
+  background: #5a6268;
+}
+
+.btn-invia-richiesta {
+  padding: 10px 25px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-invia-richiesta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.btn-invia-richiesta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 30px;
+}
+
+.giorno-header {
+  text-align: center;
+  font-weight: 700;
+  color: #666;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.giorno-cell {
+  aspect-ratio: 1;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  background: white;
+  min-height: 80px;
+}
+
+.giorno-cell:hover:not(.disabled):not(.passato) {
+  border-color: #667eea;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.giorno-cell.disabled {
+  background: #fafafa;
+  color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.giorno-cell.passato {
+  background: #f8f9fa;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.giorno-cell.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+.giorno-cell.in_attesa {
+  background: #fff3cd;
+  border-color: #ffc107;
+  color: #856404;
+  cursor: default;
+}
+
+.giorno-cell.approvata {
+  background: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+  cursor: default;
+}
+
+.giorno-cell.rifiutata {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+  cursor: default;
+}
+
+.giorno-cell.off_approvato {
+  background: #d1ecf1;
+  border-color: #17a2b8;
+  color: #0c5460;
+  cursor: default;
+}
+
+.giorno-numero {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.giorno-stato {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.giorno-cell.in_attesa .giorno-stato {
+  background: rgba(255, 193, 7, 0.3);
+}
+
+.giorno-cell.approvata .giorno-stato {
+  background: rgba(40, 167, 69, 0.3);
+}
+
+.giorno-cell.rifiutata .giorno-stato {
+  background: rgba(220, 53, 69, 0.3);
+}
+
+.giorno-cell.off_approvato .giorno-stato {
+  background: rgba(23, 162, 184, 0.3);
+}
+
+.legenda-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.legenda-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  border: 2px solid;
+}
+
+.success-message,
+.error-message {
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  animation: slideDown 0.3s;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.success-message {
+  background: #d4edda;
+  color: #155724;
+  border-left: 4px solid #28a745;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  border-left: 4px solid #dc3545;
+}
+
+.info-box {
+  padding: 20px;
+  background: #e7f3ff;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+  margin-bottom: 20px;
+}
+
+.info-box h4 {
+  margin: 0 0 10px 0;
+  color: #004085;
+}
+
+.info-box ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #004085;
+  line-height: 1.8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .calendario-grid {
+    gap: 4px;
+  }
+
+  .giorno-cell {
+    min-height: 60px;
+  }
+
+  .giorno-numero {
+    font-size: 14px;
+  }
+
+  .giorno-stato {
+    font-size: 8px;
+  }
+
+  .mese-selector {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

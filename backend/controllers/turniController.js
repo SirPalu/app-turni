@@ -181,17 +181,61 @@ const getPreferenze = async (req, res) => {
   try {
     const { userId, data } = req.params;
 
-    const result = await query(
+    // Carica preferenze manuali
+    const prefResult = await query(
       `SELECT * FROM preferenze 
        WHERE user_id = $1 AND settimana = $2
        ORDER BY giorno_settimana`,
       [userId, data]
     );
 
+    // ✅ Carica ferie approvate per questa settimana
+    const lunedi = new Date(data);
+    const domenica = new Date(lunedi);
+    domenica.setDate(lunedi.getDate() + 6);
+
+    const ferieResult = await query(
+      `SELECT 
+        data_richiesta,
+        tipo_approvazione,
+        note_admin
+       FROM richieste_ferie
+       WHERE user_id = $1 
+         AND data_richiesta >= $2 
+         AND data_richiesta <= $3
+         AND tipo_approvazione IN ('approvata', 'off_approvato')
+       ORDER BY data_richiesta`,
+      [userId, lunedi.toISOString().split('T')[0], domenica.toISOString().split('T')[0]]
+    );
+
+    // Converti ferie in formato preferenze
+    const preferenzeDaFerie = ferieResult.rows.map(ferie => {
+      const dataRichiesta = new Date(ferie.data_richiesta);
+      const giornoSettimana = (dataRichiesta.getDay() + 6) % 7; // Converti domenica=0 in lunedì=0
+
+      return {
+        id: null, // Non ha ID perché non è in tabella preferenze
+        user_id: parseInt(userId),
+        settimana: data,
+        giorno_settimana: giornoSettimana,
+        tipo_preferenza: ferie.tipo_approvazione === 'approvata' ? 'FERIE' : 'OFF',
+        created_at: null,
+        fonte: 'ferie_approvate', // ✅ Flag per distinguerle
+        note_admin: ferie.note_admin
+      };
+    });
+
+    // Unisci preferenze manuali + ferie approvate
+    const tuttePreferenze = [...prefResult.rows, ...preferenzeDaFerie];
+    
+    // Ordina per giorno
+    tuttePreferenze.sort((a, b) => a.giorno_settimana - b.giorno_settimana);
+
     res.json({
       userId: parseInt(userId),
       settimana: data,
-      preferenze: result.rows
+      preferenze: tuttePreferenze,
+      ferie_approvate_count: preferenzeDaFerie.length
     });
   } catch (error) {
     console.error('Errore recupero preferenze:', error);
