@@ -232,9 +232,12 @@ const WeekTable = ({
                     )}
                     </div>
                     <div className="giorno-data">
-                      {new Date(new Date(settimana).getTime() + idx * 86400000)
-                        .toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
-                    </div>
+  {(() => {
+    const data = new Date(settimana + 'T00:00:00'); // Forza timezone locale
+    data.setDate(data.getDate() + idx + 1); // correzione +1 giorno;
+    return data.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  })()}
+</div>
 
                     {editable && (
                       <div className="presidio-selector" onClick={(e) => e.stopPropagation()}>

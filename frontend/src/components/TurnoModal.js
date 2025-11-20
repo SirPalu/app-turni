@@ -4,7 +4,7 @@ import { createOrUpdateTurno, deleteTurno, getUserById } from '../api/axios';
 import './TurnoModal.css';
 
 const GIORNI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const TIPI_TURNO = ['OFF', 'APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA', 'NL'];
+const TIPI_TURNO = ['OFF', 'APERTURA', 'CENTRALE-A', 'CENTRALE-B', 'CENTRALE', 'CHIUSURA', 'FERIE', 'MALATTIA'];
 
 // Calcola ore giornaliere in base a contratto
 const calcolaOreGiornaliere = (oreSettimanali) => {
