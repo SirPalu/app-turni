@@ -95,6 +95,12 @@
   color: white;
 }
 
+.pref-ferie {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #28a745;
+}
+
 .pref-empty {
   color: #ccc;
   font-size: 18px;

@@ -311,7 +311,16 @@ const loadRichiesteCount = async () => {
             </tbody>
           </table>
         </div>
-
+ <div style={{
+          marginTop: '20px',
+          padding: '15px 20px',
+          background: '#f8f9fa',
+          borderRadius: '8px',
+          fontSize: '13px',
+          color: '#666'
+        }}>
+          <strong>Legenda:</strong> I badge con 🏖️ provengono da richieste ferie approvate e verranno importate automaticamente.
+        </div>
         {utenti.length === 0 && (
           <div className="empty-state">
             Nessun dipendente trovato
