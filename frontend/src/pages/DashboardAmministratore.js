@@ -1,4 +1,4 @@
-// Dashboard Amministratore - FIXED per cambio presidio
+// Dashboard Amministratore - Con workflow autorizzazione
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -8,20 +8,24 @@ import {
   generaPianificazioneAutomatica,
   importaPreferenze,
   resetSettimana,
-  getConfigPresidio
+  getConfigPresidio,
+  getStatoSettimana,
+  pubblicaBozza,
+  confermaSettimana
 } from '../api/axios';
 import WeekTable from '../components/WeekTable';
 import TurnoModal from '../components/TurnoModal';
 import ValidazioniPanel from '../components/ValidazioniPanel';
 import StoricoPanel from '../components/StoricoPanel';
 import RichiesteFeriePanel from '../components/RichiesteFeriePanel';
+import StatoSettimanaBar from '../components/StatoSettimanaBar';
 import './Dashboard.css';
 import './DashboardAmministratore.css';
 
 const DashboardAmministratore = () => {
   const { user, logout } = useAuth();
   
-  // Calcola lunedì passato, corrente e prossimo
+  // Calcola settimane
   const today = new Date();
   const currentMonday = new Date(today);
   currentMonday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
@@ -32,31 +36,11 @@ const DashboardAmministratore = () => {
 
   const nextMonday = new Date(currentMonday);
   nextMonday.setDate(currentMonday.getDate() + 7);
-  
-  const [selectedWeek, setSelectedWeek] = useState(nextMonday.toISOString().split('T')[0]);
-  
-  // Calcola anche la settimana futura (dopo prossima)
+
   const futureMonday = new Date(nextMonday);
   futureMonday.setDate(nextMonday.getDate() + 7);
   
-  // Helper per formattare range settimana
-  const formatWeekRange = (mondayDate) => {
-    const monday = new Date(mondayDate);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    
-    return `${monday.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} - ${sunday.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}`;
-  };
-  
-  // Helper per determinare label settimana
-  const getWeekLabel = (mondayDate) => {
-    const dateStr = new Date(mondayDate).toISOString().split('T')[0];
-    if (dateStr === previousMonday.toISOString().split('T')[0]) return 'Passata';
-    if (dateStr === currentMonday.toISOString().split('T')[0]) return 'Corrente';
-    if (dateStr === nextMonday.toISOString().split('T')[0]) return 'Prossima';
-    if (dateStr === futureMonday.toISOString().split('T')[0]) return 'Futura';
-    return '';
-  };
+  const [selectedWeek, setSelectedWeek] = useState(nextMonday.toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState('pianifica');
   const [utenti, setUtenti] = useState([]);
   const [preferenzeUtenti, setPreferenzeUtenti] = useState({});
@@ -65,6 +49,8 @@ const DashboardAmministratore = () => {
   const [generandoPiano, setGenerandoPiano] = useState(false);
   const [configPresidio, setConfigPresidio] = useState({});
   const [richiesteInAttesa, setRichiesteInAttesa] = useState(0);
+  const [statoSettimana, setStatoSettimana] = useState(null);
+  const [warningScadenza, setWarningScadenza] = useState(null);
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -79,20 +65,30 @@ const DashboardAmministratore = () => {
 
   useEffect(() => {
     loadConfigPresidio();
+    loadStatoSettimana();
   }, [selectedWeek]);
 
   useEffect(() => {
-  loadRichiesteCount();
-}, []);
+    loadRichiesteCount();
+  }, []);
 
-const loadRichiesteCount = async () => {
-  try {
-    const response = await getTutteRichiesteFerie({ stato: 'in_attesa' });
-    setRichiesteInAttesa(response.data.in_attesa_count);
-  } catch (err) {
-    console.error('Errore conteggio richieste:', err);
-  }
-};
+  const loadStatoSettimana = async () => {
+    try {
+      const response = await getStatoSettimana(selectedWeek);
+      setStatoSettimana(response.data);
+    } catch (err) {
+      console.error('Errore caricamento stato:', err);
+    }
+  };
+
+  const loadRichiesteCount = async () => {
+    try {
+      const response = await getTutteRichiesteFerie({ stato: 'in_attesa' });
+      setRichiesteInAttesa(response.data.in_attesa_count);
+    } catch (err) {
+      console.error('Errore conteggio richieste:', err);
+    }
+  };
 
   const loadUtenti = async () => {
     try {
@@ -127,11 +123,9 @@ const loadRichiesteCount = async () => {
   const loadConfigPresidio = async () => {
     try {
       const response = await getConfigPresidio(selectedWeek);
-      console.log('✅ Config presidio caricato:', response.data.presidio);
       setConfigPresidio(response.data.presidio);
     } catch (err) {
       console.error('Errore caricamento config presidio:', err);
-      // Set default se errore
       setConfigPresidio({
         0: 'base', 1: 'base', 2: 'base', 3: 'base', 4: 'base',
         5: 'rinforzato', 6: 'rinforzato'
@@ -161,19 +155,12 @@ const loadRichiesteCount = async () => {
     setRefreshKey(prev => prev + 1);
   };
 
-  // ✅ CALLBACK PER AGGIORNARE CONFIG PRESIDIO DAL CHILD
   const handlePresidioUpdate = async (giorno, nuovoTipo) => {
-    console.log(`🔄 Parent ricevuto cambio presidio: giorno ${giorno} -> ${nuovoTipo}`);
-    
-    // Aggiorna lo stato locale PRIMA
     const nuovoConfig = { ...configPresidio, [giorno]: nuovoTipo };
-    console.log('📊 Nuovo config presidio:', nuovoConfig);
     setConfigPresidio(nuovoConfig);
     
-    // Piccolo delay per permettere il render, poi forza refresh completo
     setTimeout(() => {
       setRefreshKey(prev => prev + 1);
-      console.log('🔄 Refresh forzato per ricalcolo validazioni');
     }, 100);
   };
 
@@ -236,9 +223,61 @@ const loadRichiesteCount = async () => {
       alert(`✅ Settimana resettata!\n${response.data.turniEliminati} turni eliminati`);
       setPreferenzeImportate(false);
       setRefreshKey(prev => prev + 1);
+      loadStatoSettimana();
     } catch (err) {
       alert('❌ Errore reset: ' + err.message);
     }
+  };
+
+  const handlePubblicaBozza = async () => {
+  if (!window.confirm('Pubblicare la bozza?\n\nLa settimana diventerà visibile ai dipendenti.')) {
+    return;
+  }
+
+  try {
+    const response = await pubblicaBozza(selectedWeek);
+    alert('✅ ' + response.data.message);
+    
+    // ✅ AGGIUNGI QUESTI REFRESH
+    await loadStatoSettimana();
+    setRefreshKey(prev => prev + 1);
+    
+  } catch (err) {
+    alert('❌ Errore: ' + (err.response?.data?.error || err.message));
+  }
+};
+
+  const handleConfermaSettimana = async () => {
+  if (!window.confirm('Confermare la settimana?\n\nVerrà inoltrata al manager per autorizzazione.')) {
+    return;
+  }
+
+  try {
+    const response = await confermaSettimana(selectedWeek);
+    
+    let messaggio = '✅ ' + response.data.message;
+    if (response.data.warning) {
+      messaggio += '\n\n⚠️ ' + response.data.warning;
+    }
+    
+    alert(messaggio);
+    setWarningScadenza(response.data.warning);
+    
+    // ✅ AGGIUNGI QUESTI REFRESH
+    await loadStatoSettimana();
+    setRefreshKey(prev => prev + 1);
+    
+  } catch (err) {
+    alert('❌ Errore: ' + (err.response?.data?.error || err.message));
+  }
+};
+
+  const formatWeekRange = (mondayDate) => {
+    const monday = new Date(mondayDate);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    return `${monday.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} - ${sunday.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}`;
   };
 
   const renderPreferenzeGrid = () => {
@@ -281,37 +320,38 @@ const loadRichiesteCount = async () => {
                       </div>
                     </td>
                     {[0, 1, 2, 3, 4, 5, 6].map(giorno => {
-  const pref = prefs.find(p => p.giorno_settimana === giorno);
-  const isDaFerie = pref?.fonte === 'ferie_approvate';
-  
-  return (
-    <td key={giorno} className="preferenza-cell">
-      {pref ? (
-        <span 
-          className={`pref-badge pref-${pref.tipo_preferenza.toLowerCase()}`}
-          style={isDaFerie ? {
-            border: '2px solid #667eea',
-            boxShadow: '0 0 8px rgba(102, 126, 234, 0.4)',
-            position: 'relative'
-          } : {}}
-          title={isDaFerie ? `${pref.tipo_preferenza} da richiesta ferie approvata` : ''}
-        >
-          {isDaFerie && <span style={{ marginRight: '4px' }}>🏖️</span>}
-          {pref.tipo_preferenza}
-        </span>
-      ) : (
-        <span className="pref-empty">-</span>
-      )}
-    </td>
-  );
-})}
+                      const pref = prefs.find(p => p.giorno_settimana === giorno);
+                      const isDaFerie = pref?.fonte === 'ferie_approvate';
+                      
+                      return (
+                        <td key={giorno} className="preferenza-cell">
+                          {pref ? (
+                            <span 
+                              className={`pref-badge pref-${pref.tipo_preferenza.toLowerCase()}`}
+                              style={isDaFerie ? {
+                                border: '2px solid #667eea',
+                                boxShadow: '0 0 8px rgba(102, 126, 234, 0.4)',
+                                position: 'relative'
+                              } : {}}
+                              title={isDaFerie ? `${pref.tipo_preferenza} da richiesta ferie approvata` : ''}
+                            >
+                              {isDaFerie && <span style={{ marginRight: '4px' }}>🏖️</span>}
+                              {pref.tipo_preferenza}
+                            </span>
+                          ) : (
+                            <span className="pref-empty">-</span>
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
- <div style={{
+
+        <div style={{
           marginTop: '20px',
           padding: '15px 20px',
           background: '#f8f9fa',
@@ -321,10 +361,77 @@ const loadRichiesteCount = async () => {
         }}>
           <strong>Legenda:</strong> I badge con 🏖️ provengono da richieste ferie approvate e verranno importate automaticamente.
         </div>
+
         {utenti.length === 0 && (
           <div className="empty-state">
             Nessun dipendente trovato
           </div>
+        )}
+      </div>
+    );
+  };
+
+  const canModifyWeek = () => {
+    // Admin può sempre modificare
+    return true;
+  };
+
+  const getActionButtons = () => {
+    if (!statoSettimana) return null;
+
+    const stato = statoSettimana.stato;
+
+    return (
+      <div className="actions-bar">
+        {/* IMPORTA PREFERENZE - sempre disponibile in pianificazione */}
+        {stato === 'pianificazione' && !preferenzeImportate && (
+          <button 
+            className="btn-action primary" 
+            onClick={handleImportaPreferenze}
+          >
+            📥 Importa Preferenze
+          </button>
+        )}
+        
+        {/* AUTO-GENERA - disponibile in pianificazione e bozza */}
+        {(stato === 'pianificazione' || stato === 'bozza' || stato === 'rifiutata') && (
+          <button 
+            className="btn-action primary" 
+            onClick={handleAutoGenera}
+            disabled={generandoPiano}
+          >
+            {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
+          </button>
+        )}
+        
+        {/* PUBBLICA BOZZA - solo da pianificazione */}
+        {stato === 'pianificazione' && (
+          <button 
+            className="btn-action primary" 
+            onClick={handlePubblicaBozza}
+          >
+            📤 Pubblica Bozza
+          </button>
+        )}
+        
+        {/* CONFERMA SETTIMANA - da bozza o rifiutata */}
+        {(stato === 'bozza' || stato === 'rifiutata') && (
+          <button 
+            className="btn-action primary" 
+            onClick={handleConfermaSettimana}
+          >
+            ✅ Conferma Settimana
+          </button>
+        )}
+        
+        {/* RESET - sempre disponibile tranne autorizzata */}
+        {stato !== 'autorizzata' && stato !== 'confermata' && (
+          <button 
+            className="btn-action btn-danger" 
+            onClick={handleResetSettimana}
+          >
+            🗑️ Reset Settimana
+          </button>
         )}
       </div>
     );
@@ -352,152 +459,144 @@ const loadRichiesteCount = async () => {
       </div>
 
       {/* Tabs */}
-<div className="dashboard-tabs">
-  <button 
-    className={`tab ${viewMode === 'pianifica' ? 'active' : ''}`}
-    onClick={() => setViewMode('pianifica')}
-  >
-    ✏️ Pianifica Turni
-  </button>
-  <button 
-    className={`tab ${viewMode === 'preferenze' ? 'active' : ''}`}
-    onClick={() => setViewMode('preferenze')}
-  >
-    📋 Visualizza Preferenze
-  </button>
-  <button 
-    className={`tab ${viewMode === 'ferie' ? 'active' : ''}`}
-    onClick={() => {
-      setViewMode('ferie');
-      loadRichiesteCount(); // Aggiorna conteggio
-    }}
-    style={{ position: 'relative' }}
-  >
-    🏖️ Richieste Ferie
-    {richiesteInAttesa > 0 && (
-      <span style={{
-        position: 'absolute',
-        top: '-8px',
-        right: '-8px',
-        background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-        color: 'white',
-        borderRadius: '50%',
-        width: '24px',
-        height: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '12px',
-        fontWeight: '700',
-        boxShadow: '0 2px 8px rgba(220, 53, 69, 0.4)',
-        animation: 'pulse 2s ease-in-out infinite'
-      }}>
-        {richiesteInAttesa}
-      </span>
-    )}
-  </button>
-  <button 
-    className={`tab ${viewMode === 'storico' ? 'active' : ''}`}
-    onClick={() => setViewMode('storico')}
-  >
-    📊 Storico Contatori
-  </button>
-</div>
+      <div className="dashboard-tabs">
+        <button 
+          className={`tab ${viewMode === 'pianifica' ? 'active' : ''}`}
+          onClick={() => setViewMode('pianifica')}
+        >
+          ✏️ Pianifica Turni
+        </button>
+        <button 
+          className={`tab ${viewMode === 'preferenze' ? 'active' : ''}`}
+          onClick={() => setViewMode('preferenze')}
+        >
+          📋 Visualizza Preferenze
+        </button>
+        <button 
+          className={`tab ${viewMode === 'ferie' ? 'active' : ''}`}
+          onClick={() => {
+            setViewMode('ferie');
+            loadRichiesteCount();
+          }}
+          style={{ position: 'relative' }}
+        >
+          🏖️ Richieste Ferie
+          {richiesteInAttesa > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '-8px',
+              right: '-8px',
+              background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+              color: 'white',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: '700',
+              boxShadow: '0 2px 8px rgba(220, 53, 69, 0.4)',
+              animation: 'pulse 2s ease-in-out infinite'
+            }}>
+              {richiesteInAttesa}
+            </span>
+          )}
+        </button>
+        <button 
+          className={`tab ${viewMode === 'storico' ? 'active' : ''}`}
+          onClick={() => setViewMode('storico')}
+        >
+          📊 Storico Contatori
+        </button>
+      </div>
 
-{/* Selettore Settimana */}
-{viewMode !== 'storico' && (
-  <div className="week-selector">
-    <button 
-      className={`week-btn ${selectedWeek === previousMonday.toISOString().split('T')[0] ? 'active' : ''}`}
-      onClick={() => setSelectedWeek(previousMonday.toISOString().split('T')[0])}
-    >
-      {formatWeekRange(previousMonday)}<br/>
-      <span style={{ fontSize: '12px', opacity: 0.8 }}>(Passata)</span>
-    </button>
-    <button 
-      className={`week-btn ${selectedWeek === currentMonday.toISOString().split('T')[0] ? 'active' : ''}`}
-      onClick={() => setSelectedWeek(currentMonday.toISOString().split('T')[0])}
-    >
-      {formatWeekRange(currentMonday)}<br/>
-      <span style={{ fontSize: '12px', opacity: 0.8 }}>(Corrente)</span>
-    </button>
-    <button 
-      className={`week-btn ${selectedWeek === nextMonday.toISOString().split('T')[0] ? 'active' : ''}`}
-      onClick={() => setSelectedWeek(nextMonday.toISOString().split('T')[0])}
-    >
-      {formatWeekRange(nextMonday)}<br/>
-      <span style={{ fontSize: '12px', opacity: 0.8 }}>(Prossima)</span>
-    </button>
-    <button 
-      className={`week-btn ${selectedWeek === futureMonday.toISOString().split('T')[0] ? 'active' : ''}`}
-      onClick={() => setSelectedWeek(futureMonday.toISOString().split('T')[0])}
-    >
-      {formatWeekRange(futureMonday)}<br/>
-      <span style={{ fontSize: '12px', opacity: 0.8 }}>(Futura)</span>
-    </button>
-  </div>
-)}
+      {/* Selettore Settimana */}
+      {viewMode !== 'storico' && (
+        <div className="week-selector">
+          <button 
+            className={`week-btn ${selectedWeek === previousMonday.toISOString().split('T')[0] ? 'active' : ''}`}
+            onClick={() => setSelectedWeek(previousMonday.toISOString().split('T')[0])}
+          >
+            {formatWeekRange(previousMonday)}<br/>
+            <span style={{ fontSize: '12px', opacity: 0.8 }}>(Passata)</span>
+          </button>
+          <button 
+            className={`week-btn ${selectedWeek === currentMonday.toISOString().split('T')[0] ? 'active' : ''}`}
+            onClick={() => setSelectedWeek(currentMonday.toISOString().split('T')[0])}
+          >
+            {formatWeekRange(currentMonday)}<br/>
+            <span style={{ fontSize: '12px', opacity: 0.8 }}>(Corrente)</span>
+          </button>
+          <button 
+            className={`week-btn ${selectedWeek === nextMonday.toISOString().split('T')[0] ? 'active' : ''}`}
+            onClick={() => setSelectedWeek(nextMonday.toISOString().split('T')[0])}
+          >
+            {formatWeekRange(nextMonday)}<br/>
+            <span style={{ fontSize: '12px', opacity: 0.8 }}>(Prossima)</span>
+          </button>
+          <button 
+            className={`week-btn ${selectedWeek === futureMonday.toISOString().split('T')[0] ? 'active' : ''}`}
+            onClick={() => setSelectedWeek(futureMonday.toISOString().split('T')[0])}
+          >
+            {formatWeekRange(futureMonday)}<br/>
+            <span style={{ fontSize: '12px', opacity: 0.8 }}>(Futura)</span>
+          </button>
+        </div>
+      )}
 
       {/* Contenuto */}
       <div className="dashboard-content">
         {viewMode === 'pianifica' && (
           <div className="pianifica-view">
-            <div className="actions-bar">
-              {!preferenzeImportate && (
-                <button 
-                  className="btn-action primary" 
-                  onClick={handleImportaPreferenze}
-                >
-                  📥 Importa Preferenze
-                </button>
-              )}
-              
-              <button 
-                className="btn-action primary" 
-                onClick={handleAutoGenera}
-                disabled={generandoPiano}
-              >
-                {generandoPiano ? '⏳ Generazione...' : '🤖 Auto-Genera Settimana'}
-              </button>
-              
-              <button className="btn-action">
-                📤 Pubblica Bozza
-              </button>
-              
-              <button className="btn-action">
-                ✅ Conferma Settimana
-              </button>
-              
-              <button 
-                className="btn-action btn-danger" 
-                onClick={handleResetSettimana}
-              >
-                🗑️ Reset Settimana
-              </button>
-            </div>
+            {/* Barra Stato */}
+            <StatoSettimanaBar 
+              settimana={selectedWeek} 
+              onUpdate={() => {
+                loadStatoSettimana();
+                setRefreshKey(prev => prev + 1);
+              }} 
+            />
+
+            {/* Warning Scadenza */}
+            {warningScadenza && (
+              <div className="info-card" style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107' }}>
+                <h4 style={{ color: '#856404' }}>⚠️ {warningScadenza}</h4>
+              </div>
+            )}
+
+            {/* Azioni Workflow */}
+            {getActionButtons()}
+
+            {statoSettimana?.stato === 'rifiutata' && statoSettimana.note_rifiuto && (
+              <div className="info-card" style={{ background: '#f8d7da', borderLeft: '4px solid #dc3545' }}>
+                <h4 style={{ color: '#721c24' }}>🔴 Pianificazione Rifiutata dal Manager</h4>
+                <p style={{ color: '#721c24' }}>
+                  <strong>Motivo:</strong> {statoSettimana.note_rifiuto}
+                </p>
+              </div>
+            )}
 
             <div className="info-card">
-              <h4>ℹ️ Istruzioni</h4>
+              <h4>ℹ️ Workflow Autorizzazione</h4>
               <p>
-                <strong>1.</strong> Clicca "Importa Preferenze" per caricare le richieste dei dipendenti<br/>
-                <strong>2.</strong> Usa "Auto-Genera" per completare automaticamente o inserisci turni manualmente<br/>
-                <strong>3.</strong> Verifica le validazioni e correggi eventuali problemi<br/>
-                <strong>4.</strong> Pubblica la bozza e poi conferma la settimana
+                <strong>1. Pianificazione:</strong> Inserisci preferenze e genera la settimana<br/>
+                <strong>2. Pubblica Bozza:</strong> Rendi visibile ai dipendenti<br/>
+                <strong>3. Conferma Settimana:</strong> Inoltra al manager (entro sabato 19:59)<br/>
+                <strong>4. Autorizzazione Manager:</strong> Attendi l'approvazione finale
               </p>
             </div>
 
-            {/* ✅ PASSA CONFIG PRESIDIO ALLE VALIDAZIONI */}
             <ValidazioniPanel 
               settimana={selectedWeek} 
               onRefresh={refreshKey}
               configPresidio={configPresidio}
             />
 
-            {/* ✅ PASSA LA CALLBACK PER AGGIORNARE IL PRESIDIO */}
             <WeekTable 
               key={`${refreshKey}-${JSON.stringify(configPresidio)}`}
               settimana={selectedWeek} 
-              editable={true}
+              editable={canModifyWeek()}
               onTurnoClick={handleTurnoClick}
               onPresidioChange={handlePresidioUpdate}
               configPresidio={configPresidio}
@@ -508,11 +607,12 @@ const loadRichiesteCount = async () => {
         {viewMode === 'preferenze' && renderPreferenzeGrid()}
 
         {viewMode === 'storico' && <StoricoPanel />}
+        
         {viewMode === 'ferie' && (
-  <RichiesteFeriePanel 
-    onUpdate={loadRichiesteCount}
-  />
-)}
+          <RichiesteFeriePanel 
+            onUpdate={loadRichiesteCount}
+          />
+        )}
       </div>
 
       {/* Modal Turno */}
@@ -529,7 +629,7 @@ const loadRichiesteCount = async () => {
         />
       )}
 
-      {/* Overlay Generazione in Corso */}
+      {/* Overlay Generazione */}
       {generandoPiano && (
         <div className="generating-overlay">
           <div className="generating-content">

@@ -1,0 +1,149 @@
+/* Barra Stato Settimana */
+
+.stato-settimana-bar {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px 30px;
+  margin-bottom: 25px;
+  animation: slideDown 0.3s;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stato-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.stato-info {
+  flex: 1;
+}
+
+.stato-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.stato-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stato-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s;
+}
+
+.stato-badge.pianificazione {
+  background: #e9ecef;
+  color: #495057;
+  border: 2px solid #6c757d;
+}
+
+.stato-badge.bozza {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.stato-badge.confermata {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 2px solid #17a2b8;
+}
+
+.stato-badge.autorizzata {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+}
+
+.stato-badge.rifiutata {
+  background: #f8d7da;
+  color: #721c24;
+  border: 2px solid #dc3545;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.stato-timestamp {
+  font-size: 13px;
+  color: #999;
+  font-style: italic;
+}
+
+.note-rifiuto-box {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8d7da;
+  border-left: 4px solid #dc3545;
+  border-radius: 5px;
+}
+
+.note-rifiuto-box strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #721c24;
+}
+
+.note-rifiuto-box p {
+  margin: 0;
+  color: #721c24;
+  line-height: 1.6;
+}
+
+.warning-scadenza {
+  padding: 15px 20px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 5px;
+  margin-top: 15px;
+  color: #856404;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stato-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stato-badge {
+    justify-content: center;
+  }
+}

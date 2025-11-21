@@ -56,44 +56,47 @@ const WeekTable = ({
   }, [utenti, settimana]);
 
   const loadTurni = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const turniResponse = await getTurniSettimana(settimana);
-      const turniData = turniResponse.data.turni;
-      setTurni(turniData);
-      
-      console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
-      
-      if (editable) {
-        try {
-          const usersResponse = await getAllUsers();
-          const filteredUsers = usersResponse.data.users.filter(u => u.ruolo !== 'manager');
-          setUtenti(filteredUsers);
-        } catch (err) {
-          console.error('Errore caricamento utenti (admin):', err);
-          setError('Impossibile caricare la lista utenti');
-        }
-      } else {
-        const allTurni = Object.values(turniData).flat();
-        if (allTurni.length > 0) {
-          const uniqueUsers = [...new Map(
-            allTurni.map(t => [t.user_id, { id: t.user_id, nome: t.nome }])
-          ).values()];
-          setUtenti(uniqueUsers);
-        } else {
-          setUtenti([]);
-        }
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const turniResponse = await getTurniSettimana(settimana);
+    const turniData = turniResponse.data.turni;
+    setTurni(turniData);
+    
+    console.log('✅ Turni caricati:', Object.values(turniData).flat().length, 'turni totali');
+    
+    // ✅ SOLO SE EDITABLE (= admin) carica tutti gli utenti
+    if (editable) {
+      try {
+        const usersResponse = await getAllUsers();
+        const filteredUsers = usersResponse.data.users.filter(u => u.ruolo !== 'manager');
+        setUtenti(filteredUsers);
+      } catch (err) {
+        console.error('Errore caricamento utenti (admin):', err);
+        setError('Impossibile caricare la lista utenti');
       }
-      
-    } catch (err) {
-      console.error('Errore caricamento turni:', err);
-      setError('Errore nel caricamento dei turni');
-    } finally {
-      setLoading(false);
+    } else {
+      // ✅ PER DIPENDENTI: estrai utenti dai turni caricati
+      const allTurni = Object.values(turniData).flat();
+      if (allTurni.length > 0) {
+        const uniqueUsers = [...new Map(
+          allTurni.map(t => [t.user_id, { id: t.user_id, nome: t.nome, ore_settimanali: t.ore_settimanali }])
+        ).values()];
+        setUtenti(uniqueUsers);
+        console.log('✅ Utenti estratti dai turni:', uniqueUsers.length);
+      } else {
+        setUtenti([]);
+      }
     }
-  };
+    
+  } catch (err) {
+    console.error('Errore caricamento turni:', err);
+    setError('Errore nel caricamento dei turni');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const loadConfigPresidioInternal = async () => {
     try {

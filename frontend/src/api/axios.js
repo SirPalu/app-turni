@@ -145,6 +145,31 @@ export const gestisciRichiestaFerie = (richiestaId, azione, note) => {
   return axiosInstance.put(`/ferie/gestisci/${richiestaId}`, { azione, note_admin: note });
 };
 
+// AUTHORIZATION WORKFLOW
+export const getStatoSettimana = (settimana) => {
+  return axiosInstance.get(`/authorization/stato/${settimana}`);
+};
+
+export const pubblicaBozza = (settimana) => {
+  return axiosInstance.post('/authorization/pubblica', { settimana });
+};
+
+export const confermaSettimana = (settimana) => {
+  return axiosInstance.post('/authorization/conferma', { settimana });
+};
+
+export const autorizzaSettimana = (settimana) => {
+  return axiosInstance.post('/authorization/autorizza', { settimana });
+};
+
+export const rifiutaPianificazione = (settimana, note_rifiuto) => {
+  return axiosInstance.post('/authorization/rifiuta', { settimana, note_rifiuto });
+};
+
+export const checkScadenzaPreferenze = (settimana) => {
+  return axiosInstance.get(`/authorization/check-scadenza-preferenze/${settimana}`);
+};
+
 export default axiosInstance;
 
 // VALIDAZIONI

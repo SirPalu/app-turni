@@ -1,6 +1,6 @@
 // Form per inserimento preferenze dipendente
 import React, { useState, useEffect } from 'react';
-import { getPreferenze, savePreferenze } from '../api/axios';
+import { getPreferenze, savePreferenze, checkScadenzaPreferenze } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import './PreferenzeForm.css';
 
@@ -14,9 +14,28 @@ const PreferenzeForm = ({ settimana }) => {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
+  // 🔥 NUOVI STATI
+  const [scadenzaPreferenze, setScadenzaPreferenze] = useState(null);
+  const [isScaduta, setIsScaduta] = useState(false);
+
   useEffect(() => {
     loadPreferenze();
   }, [settimana, user]);
+
+  // 🔥 CHECK SCADENZA
+  useEffect(() => {
+    checkScadenza();
+  }, [settimana]);
+
+  const checkScadenza = async () => {
+    try {
+      const response = await checkScadenzaPreferenze(settimana);
+      setScadenzaPreferenze(response.data);
+      setIsScaduta(response.data.scaduta);
+    } catch (err) {
+      console.error('Errore check scadenza:', err);
+    }
+  };
 
   const loadPreferenze = async () => {
     if (!user) return;
@@ -24,7 +43,6 @@ const PreferenzeForm = ({ settimana }) => {
     try {
       const response = await getPreferenze(user.id, settimana);
       
-      // Converti array in oggetto { giorno: tipo }
       const prefObj = {};
       response.data.preferenze.forEach(pref => {
         prefObj[pref.giorno_settimana] = pref.tipo_preferenza;
@@ -40,7 +58,6 @@ const PreferenzeForm = ({ settimana }) => {
     setPreferenze(prev => {
       const newPref = { ...prev };
       
-      // Se clicchi sulla stessa preferenza, la rimuovi
       if (newPref[giorno] === tipo) {
         delete newPref[giorno];
       } else {
@@ -49,8 +66,7 @@ const PreferenzeForm = ({ settimana }) => {
       
       return newPref;
     });
-    
-    // Resetta messaggi
+
     setMessage(null);
     setError(null);
   };
@@ -58,22 +74,12 @@ const PreferenzeForm = ({ settimana }) => {
   const validatePreferenze = () => {
     const prefArray = Object.entries(preferenze);
     
-    // Conta tipi
     const offCount = prefArray.filter(([_, tipo]) => tipo === 'OFF').length;
     const altriCount = prefArray.filter(([_, tipo]) => tipo !== 'OFF').length;
     
-    // Validazione: max 1 OFF + max 2 Apertura/Chiusura
-    if (offCount > 1) {
-      return 'Puoi selezionare massimo 1 giorno OFF';
-    }
-    
-    if (altriCount > 2) {
-      return 'Puoi selezionare massimo 2 preferenze tra Apertura e Chiusura';
-    }
-    
-    if (offCount + altriCount > 3) {
-      return 'Puoi selezionare massimo 3 preferenze in totale (1 OFF + 2 Apertura/Chiusura)';
-    }
+    if (offCount > 1) return 'Puoi selezionare massimo 1 giorno OFF';
+    if (altriCount > 2) return 'Puoi selezionare massimo 2 preferenze tra Apertura e Chiusura';
+    if (offCount + altriCount > 3) return 'Puoi selezionare massimo 3 preferenze in totale (1 OFF + 2 Apertura/Chiusura)';
     
     return null;
   };
@@ -81,7 +87,6 @@ const PreferenzeForm = ({ settimana }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validazione
     const validationError = validatePreferenze();
     if (validationError) {
       setError(validationError);
@@ -92,7 +97,6 @@ const PreferenzeForm = ({ settimana }) => {
       setLoading(true);
       setError(null);
       
-      // Converti oggetto in array per API
       const prefArray = Object.entries(preferenze).map(([giorno, tipo]) => ({
         giorno_settimana: parseInt(giorno),
         tipo_preferenza: tipo
@@ -123,6 +127,31 @@ const PreferenzeForm = ({ settimana }) => {
 
   const counts = contaPreferenze();
 
+
+  // 🔥 RETURN BLOCCATO SE SCADUTA
+  if (isScaduta) {
+    return (
+      <div className="preferenze-form-container">
+        <div
+          className="preferenze-header"
+          style={{
+            background: '#f8d7da',
+            padding: '30px',
+            borderRadius: '8px'
+          }}
+        >
+          <h3 style={{ color: '#721c24' }}>🔒 Scadenza Superata</h3>
+          <p className="preferenze-info" style={{ color: '#721c24' }}>
+            Le preferenze per questa settimana non sono più modificabili.<br />
+            La scadenza era <strong>mercoledì alle 21:59</strong>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+
+  // 🔥 RETURN ORIGINALE
   return (
     <div className="preferenze-form-container">
       <div className="preferenze-header">
