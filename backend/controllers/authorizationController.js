@@ -295,7 +295,7 @@ const checkScadenzaPreferenze = async (req, res) => {
     const { settimana } = req.params;
 
     // Calcola mercoledì 21:59 della settimana PRECEDENTE
-    const lunediTarget = new Date(settimana);
+    const lunediTarget = new Date(settimana + 'T00:00:00');
     const mercolediPrecedente = new Date(lunediTarget);
     mercolediPrecedente.setDate(lunediTarget.getDate() - 5); // Mercoledì prima
     mercolediPrecedente.setHours(21, 59, 59, 999);

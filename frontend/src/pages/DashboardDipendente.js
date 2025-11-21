@@ -186,29 +186,8 @@ const DashboardDipendente = () => {
 
         {viewMode === 'preferenze' && (
           <div className="preferenze-view">
-            {scadenzaPreferenze && scadenzaPreferenze.scaduta ? (
-              <div className="info-card" style={{ background: '#f8d7da', borderLeft: '4px solid #dc3545' }}>
-                <h4 style={{ color: '#721c24' }}>🔒 Scadenza Superata</h4>
-                <p style={{ color: '#721c24' }}>
-                  Le preferenze per la prossima settimana non sono più modificabili.
-                  La scadenza era <strong>mercoledì alle 21:59</strong>.
-                </p>
+                <PreferenzeForm />
               </div>
-            ) : (
-              <>
-                <div className="info-card info-warning">
-                  <h4>⚠️ Scadenza inserimento preferenze</h4>
-                  <p>
-                    Le preferenze per la prossima settimana devono essere inserite entro 
-                    <strong> mercoledì alle 21:59</strong>. Dopo tale orario non sarà più possibile 
-                    modificarle.
-                  </p>
-                </div>
-
-                <PreferenzeForm settimana={nextMonday.toISOString().split('T')[0]} />
-              </>
-            )}
-          </div>
         )}
 
         {viewMode === 'ferie' && (

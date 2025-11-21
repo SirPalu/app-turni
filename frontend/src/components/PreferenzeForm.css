@@ -273,3 +273,61 @@
     width: 100%;
   }
 }
+
+/* Tab Selezione Settimana */
+.settimane-tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.settimana-tab {
+  flex: 1;
+  min-width: 200px;
+  padding: 15px 20px;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.settimana-tab:hover:not(:disabled) {
+  background: #f0f0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.settimana-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+}
+
+.settimana-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #e9ecef;
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+/* Responsive Tab Settimane */
+@media (max-width: 768px) {
+  .settimane-tabs {
+    flex-direction: column;
+  }
+
+  .settimana-tab {
+    width: 100%;
+    min-width: auto;
+  }
+}

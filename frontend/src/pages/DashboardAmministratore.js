@@ -93,7 +93,8 @@ const DashboardAmministratore = () => {
   const loadUtenti = async () => {
     try {
       const response = await getAllUsers();
-      setUtenti(response.data.users);
+      const utentiFiltrati = response.data.users.filter(u => u.ruolo !== 'manager');
+      setUtenti(utentiFiltrati);
     } catch (err) {
       console.error('Errore caricamento utenti:', err);
     }
