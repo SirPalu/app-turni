@@ -170,6 +170,41 @@ export const checkScadenzaPreferenze = (settimana) => {
   return axiosInstance.get(`/authorization/check-scadenza-preferenze/${settimana}`);
 };
 
+// EXPORT EXCEL
+export const downloadExcelSettimana = async (settimana) => {
+  try {
+    const response = await axiosInstance.get(`/export/settimana/${settimana}`, {
+      responseType: 'blob' // IMPORTANTE per file binari
+    });
+    
+    // Crea URL temporaneo per il blob
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    
+    const url = window.URL.createObjectURL(blob);
+    
+    // Crea link temporaneo e clicca
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Turni_Settimana_${settimana}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Pulizia
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Errore download Excel:', error);
+    return { 
+      success: false, 
+      error: error.response?.data?.error || 'Errore nel download del file' 
+    };
+  }
+};
+
 export default axiosInstance;
 
 // VALIDAZIONI

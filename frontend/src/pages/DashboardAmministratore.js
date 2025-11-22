@@ -11,7 +11,8 @@ import {
   getConfigPresidio,
   getStatoSettimana,
   pubblicaBozza,
-  confermaSettimana
+  confermaSettimana,
+  downloadExcelSettimana
 } from '../api/axios';
 import WeekTable from '../components/WeekTable';
 import TurnoModal from '../components/TurnoModal';
@@ -51,6 +52,7 @@ const DashboardAmministratore = () => {
   const [richiesteInAttesa, setRichiesteInAttesa] = useState(0);
   const [statoSettimana, setStatoSettimana] = useState(null);
   const [warningScadenza, setWarningScadenza] = useState(null);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -270,6 +272,24 @@ const DashboardAmministratore = () => {
     
   } catch (err) {
     alert('❌ Errore: ' + (err.response?.data?.error || err.message));
+  }
+};
+
+const handleDownloadExcel = async () => {
+  try {
+    setDownloadingExcel(true);
+    const result = await downloadExcelSettimana(selectedWeek);
+    
+    if (!result.success) {
+      alert('❌ Errore nel download: ' + result.error);
+    }
+    // Il file viene scaricato automaticamente dal browser
+    
+  } catch (err) {
+    console.error('Errore download:', err);
+    alert('❌ Errore nel download del file Excel');
+  } finally {
+    setDownloadingExcel(false);
   }
 };
 
@@ -568,6 +588,30 @@ const DashboardAmministratore = () => {
 
             {/* Azioni Workflow */}
             {getActionButtons()}
+
+            {getActionButtons()}
+
+{/* Bottone Download Excel */}
+<div style={{ 
+  marginTop: '20px', 
+  paddingTop: '20px', 
+  borderTop: '2px solid #e0e0e0',
+  display: 'flex',
+  justifyContent: 'center'
+}}>
+  <button 
+    className="btn-action primary"
+    onClick={handleDownloadExcel}
+    disabled={downloadingExcel}
+    style={{
+      minWidth: '250px',
+      fontSize: '16px',
+      padding: '15px 30px'
+    }}
+  >
+    {downloadingExcel ? '⏳ Generazione Excel...' : '📥 Scarica Excel Settimana'}
+  </button>
+</div>
 
             {statoSettimana?.stato === 'rifiutata' && statoSettimana.note_rifiuto && (
               <div className="info-card" style={{ background: '#f8d7da', borderLeft: '4px solid #dc3545' }}>

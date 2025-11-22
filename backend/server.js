@@ -16,6 +16,7 @@ const storicoRoutes = require('./routes/storicoRoutes');
 const nlRoutes = require('./routes/nlRoutes');
 const ferieRoutes = require('./routes/ferieRoutes');
 const authorizationRoutes = require('./routes/authorizationRoutes');
+const exportRoutes = require('./routes/exportRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -89,6 +90,7 @@ app.use('/api/storico', storicoRoutes);
 app.use('/api/nl', nlRoutes);
 app.use('/api/ferie', ferieRoutes);
 app.use('/api/authorization', authorizationRoutes);
+app.use('/api/export', exportRoutes);
 
 // ===== ERROR HANDLERS =====
 

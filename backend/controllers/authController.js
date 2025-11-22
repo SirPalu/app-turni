@@ -37,10 +37,8 @@ const login = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Verifica password
-    // NOTA: Per ora le password nel DB sono placeholder, quindi accettiamo qualsiasi password
-    // Quando implementeremo la gestione utenti vera, useremo bcrypt.compare
-    const isPasswordValid = true; // TODO: await bcrypt.compare(password, user.password_hash);
+    // ✅ VERIFICA PASSWORD CON BCRYPT
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({ 
