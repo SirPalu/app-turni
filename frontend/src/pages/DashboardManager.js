@@ -138,32 +138,53 @@ const DashboardManager = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+  e.preventDefault();
+  setError(null);
 
-    try {
-      if (editingUser) {
-        const updateData = { ...formData };
-        if (!updateData.password) {
-          delete updateData.password;
-        }
-        delete updateData.username;
-        
-        await updateUser(editingUser.id, updateData);
-        setMessage('Utente modificato con successo');
-      } else {
-        await createUser(formData);
-        setMessage('Utente creato con successo');
+  try {
+    if (editingUser) {
+      // ✅ FIX: Crea payload pulito senza username
+      const updateData = {
+        nome: formData.nome,
+        ruolo: formData.ruolo,
+        ore_settimanali: parseInt(formData.ore_settimanali),
+        ha_chiavi: formData.ha_chiavi,
+        ferie_ore_mese: parseFloat(formData.ferie_ore_mese)
+      };
+      
+      // Aggiungi password solo se presente
+      if (formData.password && formData.password.trim()) {
+        updateData.password = formData.password;
       }
       
-      setTimeout(() => setMessage(null), 3000);
-      resetForm();
-      loadUtenti();
-    } catch (err) {
-      console.error('Errore salvataggio:', err);
-      setError(err.response?.data?.error || 'Errore nel salvataggio');
+      console.log('📤 Invio modifica utente:', updateData);
+      
+      await updateUser(editingUser.id, updateData);
+      setMessage(`✅ Utente ${formData.nome} modificato con successo`);
+    } else {
+      // Creazione nuovo utente
+      const createData = {
+        username: formData.username.toLowerCase(),
+        password: formData.password,
+        nome: formData.nome,
+        ruolo: formData.ruolo,
+        ore_settimanali: parseInt(formData.ore_settimanali),
+        ha_chiavi: formData.ha_chiavi,
+        ferie_ore_mese: parseFloat(formData.ferie_ore_mese)
+      };
+      
+      await createUser(createData);
+      setMessage(`✅ Utente ${formData.nome} creato con successo`);
     }
-  };
+    
+    setTimeout(() => setMessage(null), 3000);
+    resetForm();
+    await loadUtenti(); // ✅ Attendi il caricamento
+  } catch (err) {
+    console.error('❌ Errore salvataggio:', err);
+    setError(err.response?.data?.error || 'Errore nel salvataggio');
+  }
+};
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

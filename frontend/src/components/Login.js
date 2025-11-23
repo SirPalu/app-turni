@@ -76,14 +76,7 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="login-help">
-          <small>
-            <strong>Utenti test:</strong><br />
-            Dipendente: roberta / test123<br />
-            Amministratore: federica / test123<br />
-            Manager: manager / test123
-          </small>
-        </div>
+        
       </div>
     </div>
   );

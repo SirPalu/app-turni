@@ -589,8 +589,6 @@ const handleDownloadExcel = async () => {
             {/* Azioni Workflow */}
             {getActionButtons()}
 
-            {getActionButtons()}
-
 {/* Bottone Download Excel */}
 <div style={{ 
   marginTop: '20px', 

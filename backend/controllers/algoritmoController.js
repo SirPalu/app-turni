@@ -143,7 +143,7 @@ const calcolaSlotVuoti = (dipendenti, turniEsistenti) => {
 };
 
 const eseguiRandomSearch = async (slotDaRiempire, dipendenti, turniEsistenti, configPresidio, settimana) => {
-  const MAX_TENTATIVI = 13000;
+  const MAX_TENTATIVI = 10000;
   let bestSolution = null;
   let bestScore = -Infinity;
   let tentativiValidi = 0;
